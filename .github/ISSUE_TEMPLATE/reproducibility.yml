@@ -1,0 +1,26 @@
+name: Reproducibility problem
+description: Regenerated results differ from the published tables, or verify does not print PASS.
+labels: [reproducibility]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Release and image digest
+      description: For example v1.0.0 and ghcr.io/the-sudipta/selfheal-airtwin@sha256:...
+    validations:
+      required: true
+  - type: textarea
+    id: verify
+    attributes:
+      label: Output of `airtwin verify`
+      description: Paste the full output, including the listed differences.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, CPU architecture, Docker version.
+    validations:
+      required: true
