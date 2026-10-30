@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "SelfHeal-AirTwin: a self-healing digital twin for drift detection and correction in low-cost urban air-quality sensors"
+abstract: >-
+  SelfHeal-AirTwin is a streaming digital twin for low-cost air-quality
+  sensor networks. For every sensor it predicts the value the sensor should
+  read from neighbouring sensors, weather and the reference analyzer, scores
+  drift from the residual with EWMA and CUSUM, estimates an online offset and
+  gain correction once drift is confirmed, publishes corrected values, and
+  returns a ranked recalibration list to the physical network.
+authors:
+  - family-names: Das
+    given-names: Sudipta Kumar
+    email: sudiptakumar400@gmail.com
+version: 0.1.0
+date-released: 2026-10-30
+license: MIT
+repository-code: "https://github.com/the-sudipta/SelfHeal-AirTwin"
+url: "https://the-sudipta.github.io/SelfHeal-AirTwin/"
+keywords:
+  - digital twin
+  - big data
+  - smart city
+  - air quality
+  - low-cost sensors
+  - sensor drift
+  - self-healing
+  - streaming
