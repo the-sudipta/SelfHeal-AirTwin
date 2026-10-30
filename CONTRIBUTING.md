@@ -33,7 +33,7 @@ All four must pass. CI runs the same checks on every push.
 
 ## Commit messages
 
-Title format: `<emoji> <Type> : <title in imperative first person singular>`, for example `✨ Feat : I add the drift detector module`.
+Title format: `<emoji> <Type> : <title in imperative mood>`, starting with a capitalised verb, for example `✨ Feat : Add the drift detector module`.
 
 | Emoji | Type | When |
 |---|---|---|
