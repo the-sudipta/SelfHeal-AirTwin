@@ -1,0 +1,4 @@
+# SHA-256 of the dataset archives exactly as served by the UCI Machine Learning Repository.
+# Pinned on 2026-10-30. airtwin download refuses any file that does not match.
+d4a64013fb385288a8a48d9d193ca7079b2e1bbddf6f8d458feb8c08ab2b8a2a  uci_air_quality.zip
+b04da438b2f331ac0ffd45aebdfec0d20d2367feb5f6948c4b1f7ce1191e33c4  beijing_multisite.zip
