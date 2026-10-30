@@ -2,6 +2,22 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-30
+
+Verified data download, loaders and cleaning.
+
+### Added
+
+- `configs/default.yaml` and `airtwin.config`: one YAML file loaded into typed, immutable settings with clear errors for missing or mistyped keys.
+- Pinned SHA-256 checksums for both UCI archives in `data/checksums.sha256`, and `data/README.md` with licences (CC BY 4.0) and required citations.
+- `airtwin.data.download`: download through a temporary file, verification against the pinned checksums, deletion and a hard stop on any mismatch.
+- `airtwin.data.uci_loader`: UCI Air Quality read straight from its archive, `-200` turned into NaN, clean column names (reference analyzer vs low-cost sensors), regular hourly index. The real file gives 9,357 consecutive hours.
+- `airtwin.data.beijing_loader`: the 12 Beijing station files read from the nested archive (unrelated files ignored), `NA` turned into NaN, one long table sorted by station and time. The real archive gives 420,768 rows, 35,064 hours per station.
+- `airtwin` command with `download` and `prepare`.
+- Runtime dependencies numpy, pandas and PyYAML in the hashed lock.
+
+[0.2.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.2.0
+
 ## [0.1.0] - 2026-10-30
 
 Repository foundation.
