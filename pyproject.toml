@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "selfheal-airtwin"
+version = "0.1.0"
+description = "Self-healing digital twin for drift detection and correction in low-cost urban air-quality sensors."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sudipta Kumar Das", email = "sudiptakumar400@gmail.com" }]
+keywords = ["digital twin", "big data", "smart city", "air quality", "sensor drift"]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+
+[project.urls]
+Homepage = "https://the-sudipta.github.io/SelfHeal-AirTwin/"
+Repository = "https://github.com/the-sudipta/SelfHeal-AirTwin"
+Changelog = "https://github.com/the-sudipta/SelfHeal-AirTwin/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "N", "D", "RUF", "PTH"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+source = ["airtwin"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
