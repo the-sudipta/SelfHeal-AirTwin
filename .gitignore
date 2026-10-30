@@ -1,0 +1,38 @@
+# Workspace instruction files and local tool settings
+CLAUDE.md
+.claude/
+
+# Data (fetched and verified at build time, never committed)
+data/raw/
+data/processed/
+
+# Generated results (only the index and checksums are tracked)
+results/*
+!results/README.md
+!results/SHA256SUMS
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Logs and editor or OS files
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
