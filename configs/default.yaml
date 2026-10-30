@@ -1,0 +1,19 @@
+# SelfHeal-AirTwin configuration. Every tunable value lives here; code holds no magic numbers.
+# Relative paths are resolved against the project root (the parent of this configs/ folder).
+
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  checksums_file: data/checksums.sha256
+  download_timeout_s: 120
+  datasets:
+    uci_air_quality:
+      url: https://archive.ics.uci.edu/static/public/360/air+quality.zip
+      archive: uci_air_quality.zip
+      processed: uci_air_quality.csv
+    beijing_multisite:
+      url: https://archive.ics.uci.edu/static/public/501/beijing+multi+site+air+quality+data.zip
+      archive: beijing_multisite.zip
+      processed: beijing_multisite.csv
+  uci_missing_value: -200
+  beijing_missing_token: "NA"
