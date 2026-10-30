@@ -5,7 +5,7 @@
 [![CI](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **Status:** under active development. Milestone `v0.1.0` provides the repository foundation (licence, citation, tooling, signed history, CI). Quick start, results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** under active development. Milestone `v0.2.0` adds verified data download and cleaning on top of the repository foundation. The Docker quick start, results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 
@@ -23,7 +23,15 @@ Air-quality alerts, traffic restrictions and health advice are only as good as t
 
 ## Data
 
-Two public datasets from the UCI Machine Learning Repository: [Air Quality](https://archive.ics.uci.edu/dataset/360/air+quality) (real sensor drift with a co-located reference analyzer) and [Beijing Multi-Site Air Quality](https://archive.ics.uci.edu/dataset/501) (12 sites, hourly, 2013–2017, used for controlled drift-injection experiments).
+Two public datasets from the UCI Machine Learning Repository: [Air Quality](https://archive.ics.uci.edu/dataset/360/air+quality) (real sensor drift with a co-located reference analyzer) and [Beijing Multi-Site Air Quality](https://archive.ics.uci.edu/dataset/501) (12 sites, hourly, 2013–2017, used for controlled drift-injection experiments). Both are licensed CC BY 4.0; provenance, checksums and required citations are in [data/README.md](data/README.md).
+
+Fetch, verify and clean both datasets (Windows PowerShell, inside the virtual environment from [CONTRIBUTING.md](CONTRIBUTING.md)):
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m airtwin.cli download   # downloads both archives and checks their SHA-256
+python -m airtwin.cli prepare    # writes cleaned hourly tables to data/processed/
+```
 
 ## Roadmap
 
