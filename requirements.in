@@ -1,0 +1,8 @@
+# Direct dependencies. Lock with hashes into requirements.lock (see CONTRIBUTING.md).
+# Runtime libraries are added by the milestone that first uses them.
+
+# Quality tooling
+pytest
+pytest-cov
+ruff
+mypy
