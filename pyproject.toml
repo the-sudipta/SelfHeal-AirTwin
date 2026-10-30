@@ -19,6 +19,9 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
 
+[project.scripts]
+airtwin = "airtwin.cli:main"
+
 [project.urls]
 Homepage = "https://the-sudipta.github.io/SelfHeal-AirTwin/"
 Repository = "https://github.com/the-sudipta/SelfHeal-AirTwin"
