@@ -118,13 +118,49 @@ class DriftSettings:
 
 
 @dataclass(frozen=True)
+class HealSettings:
+    """How the self-healer fits a correction ``raw = gain * expected + offset``."""
+
+    fit_hours: int
+    min_pairs: int
+    gain_min_pairs: int
+    refit_hours: int
+    fit_gain: bool
+    min_gain: float
+    max_gain: float
+    trim_mad: float
+    min_effect: float
+    min_improvement: float
+
+
+@dataclass(frozen=True)
+class FeedbackSettings:
+    """How the maintenance list ranks sensors."""
+
+    min_relative_error: float
+    duration_weight_days: float
+
+
+@dataclass(frozen=True)
+class WhatIfSettings:
+    """Horizons and history window of the what-if projection."""
+
+    horizons_days: tuple[int, ...]
+    history_hours: int
+
+
+@dataclass(frozen=True)
 class TwinConfig:
     """Settings of the twin's virtual entity."""
 
     min_training_rows: int
+    trust_substitution: bool
     model: ModelParams
     targets: Mapping[str, TargetSpec]
     drift: DriftSettings
+    heal: HealSettings
+    feedback: FeedbackSettings
+    what_if: WhatIfSettings
 
     def target(self, dataset: str) -> TargetSpec:
         """Return the target settings of one dataset."""
@@ -273,6 +309,65 @@ def _parse_drift(raw: Mapping[str, Any]) -> DriftSettings:
     )
 
 
+def _fraction(raw: Mapping[str, Any], key: str, where: str) -> float:
+    """Read a share in [0, 1)."""
+    value = float(_require(raw, key, float, where))
+    if not 0 <= value < 1:
+        raise ConfigError(f"{where}.{key} must be in [0, 1)")
+    return value
+
+
+def _parse_heal(raw: Mapping[str, Any]) -> HealSettings:
+    """Build the self-healer settings and check that the gain bounds make sense."""
+    where = "twin.heal"
+    min_gain = _positive_float(raw, "min_gain", where)
+    max_gain = _positive_float(raw, "max_gain", where)
+    if not min_gain <= 1 <= max_gain:
+        raise ConfigError(f"{where}: min_gain <= 1 <= max_gain must hold")
+    fit_hours = _positive_int(raw, "fit_hours", where)
+    min_pairs = _positive_int(raw, "min_pairs", where)
+    if min_pairs > fit_hours:
+        raise ConfigError(f"{where}.min_pairs cannot exceed fit_hours")
+    return HealSettings(
+        fit_hours=fit_hours,
+        min_pairs=min_pairs,
+        gain_min_pairs=_positive_int(raw, "gain_min_pairs", where),
+        refit_hours=_positive_int(raw, "refit_hours", where),
+        fit_gain=_require(raw, "fit_gain", bool, where),
+        min_gain=min_gain,
+        max_gain=max_gain,
+        trim_mad=_positive_float(raw, "trim_mad", where),
+        min_effect=_fraction(raw, "min_effect", where),
+        min_improvement=_fraction(raw, "min_improvement", where),
+    )
+
+
+def _parse_feedback(raw: Mapping[str, Any]) -> FeedbackSettings:
+    """Build the maintenance-list settings."""
+    where = "twin.feedback"
+    min_relative_error = float(_require(raw, "min_relative_error", float, where))
+    if min_relative_error < 0:
+        raise ConfigError(f"{where}.min_relative_error must not be negative")
+    return FeedbackSettings(
+        min_relative_error=min_relative_error,
+        duration_weight_days=_positive_float(raw, "duration_weight_days", where),
+    )
+
+
+def _parse_what_if(raw: Mapping[str, Any]) -> WhatIfSettings:
+    """Build the what-if settings; horizons must be positive whole days."""
+    where = "twin.what_if"
+    horizons = _require(raw, "horizons_days", list, where)
+    if not horizons or not all(
+        isinstance(h, int) and not isinstance(h, bool) and h > 0 for h in horizons
+    ):
+        raise ConfigError(f"{where}.horizons_days must be a non-empty list of positive days")
+    return WhatIfSettings(
+        horizons_days=tuple(sorted(horizons)),
+        history_hours=_positive_int(raw, "history_hours", where),
+    )
+
+
 def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
     """Build the twin section: model parameters, per-dataset targets and drift settings."""
     model_raw = _require(raw, "model", dict, "twin")
@@ -304,9 +399,13 @@ def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
         )
     return TwinConfig(
         min_training_rows=_positive_int(raw, "min_training_rows", "twin"),
+        trust_substitution=_require(raw, "trust_substitution", bool, "twin"),
         model=model,
         targets=targets,
         drift=_parse_drift(_require(raw, "drift", dict, "twin")),
+        heal=_parse_heal(_require(raw, "heal", dict, "twin")),
+        feedback=_parse_feedback(_require(raw, "feedback", dict, "twin")),
+        what_if=_parse_what_if(_require(raw, "what_if", dict, "twin")),
     )
 
 

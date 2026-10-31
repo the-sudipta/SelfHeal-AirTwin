@@ -34,6 +34,7 @@ stream:
 
 twin:
   min_training_rows: 200        # a sensor with fewer usable hours stays in warm-up
+  trust_substitution: true      # untrusted neighbours feed their virtual value, healed ones their corrected value
   drift:
     method: both                # both, ewma or cusum (single methods are ablation settings)
     baseline_hours: 720         # 30 days after calibration: learn each sensor's normal residual
@@ -47,6 +48,24 @@ twin:
     watch_level: 0.5            # drift score at which a sensor is put on watch
     confirm_hours: 24           # consecutive alarm hours before drift is confirmed
     # Defaults chosen on years 1-2 of Beijing (Supplementary S4); years 3-4 are left for evaluation.
+  heal:
+    fit_hours: 168              # the correction is fitted on the last 7 days of (expected, raw) pairs
+    min_pairs: 48               # fewer usable pairs: no correction yet
+    gain_min_pairs: 72          # a gain needs ~3 days of varying concentrations; before that, offset only
+    refit_hours: 24             # refit while a correction is active, so a growing drift stays corrected
+    fit_gain: true              # fit offset and gain; false fits an offset only (ablation)
+    min_gain: 0.25              # bounds that keep a correction from inverting or erasing a signal
+    max_gain: 4.0
+    trim_mad: 3.0               # pairs further than this many robust spreads from the first fit are ignored
+    min_effect: 0.10            # a correction must change readings at the usual level by at least 10%
+    min_improvement: 0.30       # and cut the median absolute residual on its window by at least 30%;
+                                # otherwise an alarm is dismissed, or an active correction is retired
+  feedback:
+    min_relative_error: 0.05    # sensors whose correction changes readings by less than 5% are not listed
+    duration_weight_days: 7.0   # a fault that has lasted this long counts double
+  what_if:
+    horizons_days: [7, 14, 30]
+    history_hours: 336          # corrections of the last 14 days estimate how fast the error grows
   model:                        # LightGBM regressor per sensor, deterministic single-thread training
     n_estimators: 200
     learning_rate: 0.05

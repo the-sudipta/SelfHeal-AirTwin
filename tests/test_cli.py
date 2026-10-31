@@ -56,6 +56,7 @@ stream:
     idle_timeout_s: 5
 twin:
   min_training_rows: 2
+  trust_substitution: true
   drift:
     method: both
     baseline_hours: 3
@@ -68,6 +69,23 @@ twin:
     cusum_h: 5
     watch_level: 0.5
     confirm_hours: 2
+  heal:
+    fit_hours: 10
+    min_pairs: 5
+    gain_min_pairs: 8
+    refit_hours: 2
+    fit_gain: true
+    min_gain: 0.5
+    max_gain: 2
+    trim_mad: 3
+    min_effect: 0.1
+    min_improvement: 0.3
+  feedback:
+    min_relative_error: 0.05
+    duration_weight_days: 7
+  what_if:
+    horizons_days: [7, 30]
+    history_hours: 48
   model:
     n_estimators: 5
     learning_rate: 0.1
