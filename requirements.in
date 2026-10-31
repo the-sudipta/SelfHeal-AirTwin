@@ -7,6 +7,7 @@ pandas
 pyyaml
 confluent-kafka
 pyspark
+lightgbm
 
 # Quality tooling
 pytest

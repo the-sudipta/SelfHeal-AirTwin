@@ -15,6 +15,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_ROOT_USER_ACTION=ignore
+# LightGBM needs the OpenMP runtime; it runs single-threaded (OMP_NUM_THREADS=1).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libgomp1 \
+ && rm -rf /var/lib/apt/lists/*
 
 # Stage deps: every package and its hash come from requirements.lock.
 FROM base AS deps
