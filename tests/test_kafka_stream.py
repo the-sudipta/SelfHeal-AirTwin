@@ -1,5 +1,6 @@
 import math
 import os
+import time
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
@@ -144,6 +145,24 @@ def test_publish_failure_and_idle_timeout_raise() -> None:
     silent = KafkaStream(long_frame(), ["pm25"], settings=SETTINGS, transport=Silent())
     with pytest.raises(StreamError, match="idle timeout"):
         list(silent)
+
+
+def test_slow_consumer_is_not_mistaken_for_idle_kafka() -> None:
+    class Gap(FakeTransport):
+        """One empty poll after the first batch, as when Spark has not delivered yet."""
+
+        polls = 0
+
+        def poll(self, timeout_s: float) -> list[Message]:
+            self.polls += 1
+            return [] if self.polls == 2 else super().poll(timeout_s)
+
+    stream = KafkaStream(long_frame(), ["pm25"], settings=SETTINGS, transport=Gap(batch_size=2))
+    ticks = []
+    for tick in stream:
+        ticks.append(tick)
+        time.sleep(SETTINGS.idle_timeout_s * 1.5)  # the twin is busy, or paused
+    assert len(ticks) == 3
 
 
 def test_factory_picks_backend_from_settings() -> None:

@@ -293,11 +293,13 @@ class KafkaStream:
                 if errors:
                     raise StreamError(f"publishing failed: {errors[0]}") from errors[0]
                 batch = self._transport.poll(self._settings.poll_timeout_s)
-                if batch:
-                    last_progress = time.monotonic()
-                elif time.monotonic() - last_progress > self._settings.idle_timeout_s:
+                if not batch and time.monotonic() - last_progress > self._settings.idle_timeout_s:
                     raise StreamError("no data arrived from Kafka within the idle timeout")
                 yield from assembler.add(batch)
+                if batch:
+                    # restart the clock only now: time the consumer spent on the ticks
+                    # (a paced or paused twin) is not time Kafka was idle
+                    last_progress = time.monotonic()
         finally:
             self._closed = True
             producer.join(self._settings.idle_timeout_s)
