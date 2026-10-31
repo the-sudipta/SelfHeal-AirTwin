@@ -2,6 +2,21 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-31
+
+Docker image, compose and the Kafka + Spark Structured Streaming backend.
+
+### Added
+
+- Multi-stage `Dockerfile`: Python 3.11 and Java 17 base images pinned by digest, hashed dependency install, the four Spark-Kafka connector JARs verified with `ADD --checksum`, datasets downloaded and verified at build time, non-root user, OCI labels, `HEALTHCHECK`, `EXPOSE 8080`. The container runs offline.
+- `docker-compose.yml`: `twin` on the memory backend; profile `kafka` with Apache Kafka 4.3.2 (single-node KRaft, pinned by digest) and `twin-kafka` on Kafka + Spark. Results are mounted to `./results`.
+- `airtwin.stream.kafka_stream`: readings published as JSON to a fresh topic, read back by Spark Structured Streaming in local mode, reassembled into the same hourly ticks as the memory backend. Full Beijing replay through Kafka + Spark: 35,064 ticks, 420,768 readings.
+- `create_stream` factory, `stream.kafka` configuration section with `AIRTWIN_KAFKA_BOOTSTRAP` override, `--backend` option and `check` command.
+- CI job that builds the image, runs the health check, replays on both backends and runs a real Kafka + Spark test inside the image.
+- PySpark 4.3.0 and confluent-kafka 2.16.1 in the hashed lock.
+
+[0.4.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.4.0
+
 ## [0.3.0] - 2026-10-31
 
 Stream interface and in-memory replay backend.
