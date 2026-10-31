@@ -71,6 +71,12 @@ jobs:
           chmod -R a+rwX results
           docker compose run --rm twin reproduce --smoke
 
+      - name: Live twin smoke test (API and web twin on the memory backend)
+        run: |
+          docker compose up -d twin
+          bash .github/live-check.sh 8080
+          docker compose stop twin
+
       - name: Start Kafka
         run: docker compose --profile kafka up -d --wait kafka
 
@@ -84,6 +90,11 @@ jobs:
 
       - name: Replay smoke test on the Kafka + Spark backend
         run: docker compose --profile kafka run --rm twin-kafka --backend kafka replay --limit 200
+
+      - name: Live twin smoke test on the Kafka + Spark backend
+        run: |
+          docker compose --profile kafka up -d twin-kafka
+          bash .github/live-check.sh 8081
 
       - name: Stop services
         if: always()
