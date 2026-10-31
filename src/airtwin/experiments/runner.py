@@ -21,7 +21,7 @@ import math
 import multiprocessing as mp
 import os
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -160,12 +160,21 @@ def plan_scenario(ctx: BeijingContext, scenario: Scenario) -> list[DriftSpec]:
 
 
 def _replay_frame(
-    hour: int, when: datetime, engine: TwinEngine, keys: Sequence[SensorKey]
+    hour: int,
+    when: datetime,
+    engine: TwinEngine,
+    truth: dict[SensorKey, np.ndarray],
+    drifting: Iterable[SensorKey],
 ) -> dict[str, Any]:
-    """One hour of the web-twin replay: every sensor's state."""
+    """One hour of the web-twin replay: every sensor's state and the maintenance list.
+
+    The fields match the live API's frames (``airtwin.api``), so the web twin plays both:
+    ``truth`` is the reading before injection and ``injected`` marks a drift that has begun.
+    """
     assert engine.snapshot is not None
+    started = set(drifting)
     sensors = []
-    for key in keys:
+    for key in engine.keys:
         s = engine.snapshot.sensors[key]
         sensors.append(
             {
@@ -174,13 +183,51 @@ def _replay_frame(
                 "raw": _num(s.raw),
                 "expected": _num(s.expected),
                 "corrected": _num(s.corrected),
+                "truth": _num(float(truth[key][hour])),
                 "score": _num(s.drift_score),
                 "status": s.status.value,
                 "offset": _num(s.correction.offset),
                 "gain": _num(s.correction.gain),
+                "injected": key in started,
             }
         )
-    return {"hour": hour, "time": when.isoformat(), "sensors": sensors}
+    maintenance = [
+        {
+            "rank": i.rank,
+            "sensor": str(i.key),
+            "relative_error": _num(i.relative_error),
+            "reason": i.reason,
+        }
+        for i in engine.maintenance_list()
+    ]
+    return {"hour": hour, "time": when.isoformat(), "sensors": sensors, "maintenance": maintenance}
+
+
+def _replay_network(frames: Sequence[dict[str, Any]], window: int) -> None:
+    """Add the network error to each frame, as the live API reports it.
+
+    RMSE of the raw and of the published values against the original data over the last
+    ``window`` hours (fewer at the start of the replay).
+    """
+
+    def rms(values: list[float]) -> float | None:
+        return _num(math.sqrt(sum(v * v for v in values) / len(values))) if values else None
+
+    for i, frame in enumerate(frames):
+        recent = [s for f in frames[max(0, i - window + 1) : i + 1] for s in f["sensors"]]
+        raw = [
+            s["raw"] - s["truth"] for s in recent if s["raw"] is not None and s["truth"] is not None
+        ]
+        published = [
+            s["corrected"] - s["truth"]
+            for s in recent
+            if s["corrected"] is not None and s["truth"] is not None
+        ]
+        frame["network"] = {
+            "window_hours": min(window, i + 1),
+            "rmse_raw": rms(raw),
+            "rmse_published": rms(published),
+        }
 
 
 def _num(value: float) -> float | None:
@@ -256,7 +303,8 @@ def run_beijing(scenario: Scenario) -> RunResult:
                         }
                     )
         if replay_window is not None and replay_window[0] <= now < replay_window[1]:
-            frames.append(_replay_frame(hour, now, engine, keys))
+            begun = [d.key for d in drifts if now >= d.onset]
+            frames.append(_replay_frame(hour, now, engine, ctx.truth, begun))
     window = (ctx.times[ctx.eval_start].to_pydatetime(), ctx.times[-1].to_pydatetime())
     score = score_detection(alarms, drifts, window, len(keys))
     metrics: dict[str, float] = {
@@ -287,6 +335,7 @@ def run_beijing(scenario: Scenario) -> RunResult:
         metrics[f"rmse_all_{method}"] = float(np.nanmean(every))
     replay = None
     if replay_window is not None:
+        _replay_network(frames, cfg.api.rmse_window_hours)
         replay = {
             "scenario": {"kind": scenario.kind, "seed": scenario.seed},
             "drifts": [

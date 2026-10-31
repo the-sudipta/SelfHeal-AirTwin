@@ -186,3 +186,14 @@ def test_figures_markdown_readme_and_replay(tmp_path: Path) -> None:
     target = tmp_path / "site" / "replay.json"
     report.write_replay({"b": [1], "a": None}, [target])
     assert json.loads(target.read_text(encoding="utf-8")) == {"a": None, "b": [1]}
+
+
+def test_replay_network_error_uses_a_trailing_window() -> None:
+    def frame(raw: float | None, corrected: float) -> dict:
+        return {"sensors": [{"raw": raw, "corrected": corrected, "truth": 10.0}]}
+
+    frames = [frame(13.0, 11.0), frame(None, 10.0), frame(14.0, 10.0)]
+    runner._replay_network(frames, window=2)
+    assert frames[0]["network"] == {"window_hours": 1, "rmse_raw": 3.0, "rmse_published": 1.0}
+    assert frames[1]["network"]["rmse_raw"] == 3.0
+    assert frames[2]["network"] == {"window_hours": 2, "rmse_raw": 4.0, "rmse_published": 0.0}
