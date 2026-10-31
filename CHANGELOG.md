@@ -2,6 +2,31 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-10-31
+
+The closed loop: self-healing, maintenance feedback, what-if and the twin engine.
+
+### Added
+
+- `airtwin.twin.self_healer`: on confirmed drift, a robust fit of `raw = gain * expected + offset` on the pairs since the drift began (offset only until 72 pairs, then gain and offset), proposed with its evidence and refitted daily while active.
+- `airtwin.twin.feedback`: the maintenance list — sensors ranked by relative error × (1 + days faulty / 7), each with a one-line reason.
+- `airtwin.twin.what_if`: projection of a sensor's relative error 7, 14 and 30 days ahead from the trend of its recent corrections.
+- `airtwin.twin.engine`: the only module that wires the twin parts, with
+  - **trust substitution**: a sensor with confirmed drift or a correction enters its neighbours' models as its virtual value, so it cannot mislead them;
+  - **fault isolation**: when a sensor is confirmed, its dependants restart their drift evidence;
+  - **correction guards**: a correction is applied only if it changes readings by at least 10 %, cuts the residual by at least 30 % and agrees with the alarm's direction; otherwise the alarm is dismissed. Corrections are retired once the shift is gone;
+  - events (calibrated, watch, detect, heal, refit, dismissed, recovered, recalibrated) and `mark_recalibrated` for serviced sensors.
+- `airtwin twin`: runs the twin over a dataset and prints events, the maintenance list and a what-if.
+- `twin.heal`, `twin.feedback`, `twin.what_if` and `twin.trust_substitution` configuration.
+
+### Evidence (development runs, not final results)
+
+- Four years of Beijing, calibration year 1: corrections on healthy stations 1.08 per 1,000 hours per sensor (11,213 → 1,997 thanks to the guards); 8 of 72 sensors corrected at the end. An injected +30 % PM2.5 drift at Dongsi was confirmed after 43 hours, corrected to a final gain of 1.337 (true 1.30) and ranked first, with no extra alarms at the other PM2.5 sites.
+- UCI Air Quality: the maintenance list ends with S3 (NOx, −30 %) and S4 (NO₂, −22 %).
+- Open: residual false corrections, many confirmations on UCI (30-day calibration), what-if stability — to be quantified in the experiments.
+
+[0.7.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.7.0
+
 ## [0.6.0] - 2026-10-31
 
 Drift detection.

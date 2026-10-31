@@ -1,3 +1,3 @@
 """SelfHeal-AirTwin: a self-healing digital twin for low-cost air-quality sensor networks."""
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
