@@ -22,6 +22,7 @@ const PHASES = {
   loading: ['Loading data', 'busy'],
   calibrating: ['Calibrating', 'busy'],
   running: ['LIVE · twin running', 'on'],
+  replay: ['REPLAY · recorded experiment run', 'on'],
   paused: ['PAUSED', ''],
   finished: ['Replay finished', ''],
   failed: ['Stopped', 'bad'],
@@ -32,6 +33,7 @@ export function header(status, connected, selected) {
   let phase = status ? status.phase : 'loading';
   if (!connected) phase = 'offline';
   else if (phase === 'running' && !status.running) phase = 'paused';
+  else if (phase === 'running' && status.mode === 'replay') phase = 'replay';
   const [label, mode] = PHASES[phase];
   const calibrating = phase === 'calibrating' ? ` · ${Math.min(100, (100 * status.hour) / status.fast_forward_hours).toFixed(0)}%` : '';
   $('live-label').textContent = label + calibrating;
@@ -40,8 +42,9 @@ export function header(status, connected, selected) {
   const live = connected && status && status.phase === 'running';
   $('play').textContent = status && !status.running ? 'Resume' : 'Pause';
   $('play').disabled = !live;
-  $('inject').textContent = `Inject drift into ${selected}`;
-  $('inject').disabled = !live;
+  const replay = status && status.mode === 'replay';
+  $('inject').textContent = replay ? 'Inject drift: in the live twin' : `Inject drift into ${selected}`;
+  $('inject').disabled = !live || replay;
 }
 
 export function summary(status, sensors, network) {
@@ -174,7 +177,7 @@ export function chart(frames, name, events) {
  * The ranked maintenance list. Items are rebuilt only when the ranking changes; otherwise
  * their numbers are updated in place, so a button is never replaced while it is being used.
  */
-export function maintenance(items, byName, onRecalibrate) {
+export function maintenance(items, byName, onRecalibrate, canCommand) {
   const list = $('maint');
   const shown = items.slice(0, 5);
   if (!shown.length) {
@@ -192,7 +195,7 @@ export function maintenance(items, byName, onRecalibrate) {
         <div class="maint-reason" data-field="reason"></div>
         <div class="maint-bar"><div data-field="bar"></div></div>
       </div>
-      <button class="btn btn-violet" type="button" data-sensor="${esc(item.sensor)}">Mark recalibrated</button>
+      <button class="btn btn-violet" type="button" data-sensor="${esc(item.sensor)}"${canCommand ? '' : ' disabled title="Needs the live twin: docker compose up"'}>Mark recalibrated</button>
     </li>`).join('');
     for (const button of list.querySelectorAll('button[data-sensor]')) {
       button.addEventListener('click', () => {
@@ -242,7 +245,7 @@ function measuredError(frames, name) {
   return level > 0 ? err / level : null;
 }
 
-export function whatIf(result, days, name, frames) {
+export function whatIf(result, days, name, frames, replay) {
   $('days-value').textContent = `${days} ${days === 1 ? 'day' : 'days'}`;
   $('whatif-sub').textContent = `Error at ${name} if nobody visits it, projected from the trend of its corrections`;
   // The healer refits once a day, so a trend from fewer fits mixes the first offset-only fit
@@ -255,7 +258,9 @@ export function whatIf(result, days, name, frames) {
   $('wi-twin').textContent = measured === null ? '–' : `±${(measured * 100).toFixed(1)}%`;
   $('wi-raw-bar').style.width = `${((Math.abs(projected || 0) / scale) * 100).toFixed(1)}%`;
   $('wi-twin-bar').style.width = `${((Math.abs(measured || 0) / scale) * 100).toFixed(1)}%`;
-  if (!result) {
+  if (replay) {
+    $('wi-basis').textContent = 'The what-if is computed by the live twin (docker compose up). Here, the measured error of the published values is shown for the recorded run.';
+  } else if (!result) {
     $('wi-basis').textContent = 'The projection appears once the twin is running.';
   } else if (!result.points_used) {
     $('wi-basis').textContent = `${name} has no active correction, so the twin projects no error growth. Inject a drift to see the projection change.`;

@@ -51,9 +51,12 @@ export function tell({ status, sensors, events, maintenance }) {
     };
   }
   const watch = sensors.filter((s) => s.cls === 'watch').length;
-  const tail = watch ? ` ${watch} ${watch === 1 ? 'site is' : 'sites are'} on watch, which usually passes.` : '';
+  const onWatch = watch ? ` ${watch} ${watch === 1 ? 'site is' : 'sites are'} on watch, which usually passes.` : '';
+  const invite = status.mode === 'replay'
+    ? ' This is a recorded experiment run; the drifts were injected by the experiment.'
+    : ' Try "Inject drift" to see the twin react.';
   return {
     step: 'WATCH', color: COLORS.healthy, sensor: null,
-    text: `All ${sensors.length} sites agree with the twin. Every hour each site sends its PM2.5 reading up to the Twin Core, which checks it against what the neighbours and the weather say it should be.${tail} Try "Inject drift" to see the twin react.`,
+    text: `All ${sensors.length} sites agree with the twin. Every hour each site sends its PM2.5 reading up to the Twin Core, which checks it against what the neighbours and the weather say it should be.${onWatch}${invite}`,
   };
 }

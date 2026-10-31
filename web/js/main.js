@@ -1,6 +1,6 @@
 // Entry point: follows the live twin, keeps the latest state and redraws the map and panels.
 
-import { api, follow } from './api.js';
+import { openSource } from './api.js';
 import { Camera, projection } from './camera.js';
 import * as scene from './scene.js';
 import * as panels from './panels.js';
@@ -34,6 +34,7 @@ const map = $('map');
 let hits = [];
 let pr = null;
 let eventsKey = '';
+let source = null;
 
 const camera = new Camera(map, () => { drawCity(); drawLive(); controls(); }, pick);
 
@@ -41,6 +42,10 @@ const camera = new Camera(map, () => { drawCity(); drawLive(); controls(); }, pi
 function sensors() {
   const frame = state.frames[state.frames.length - 1];
   return frame ? frame.sensors.map((s) => ({ ...s, cls: classify(s) })) : [];
+}
+
+function isReplay() {
+  return Boolean(source && source.mode === 'replay');
 }
 
 function notice(text) {
@@ -106,14 +111,15 @@ function render() {
   panels.chips(byName, state.selected, select);
   panels.site(byName.get(state.selected), state.selected);
   panels.chart(state.frames, state.selected, state.events);
-  panels.maintenance(state.maintenance, byName, recalibrate);
+  const replay = isReplay();
+  panels.maintenance(state.maintenance, byName, recalibrate, !replay);
   const eKey = state.events.length ? String(state.events[0].id) : '';
   if (eKey !== eventsKey) {
     eventsKey = eKey;
     panels.eventLog(state.events, state.seenEvent);
     state.seenEvent = state.events.length ? state.events[0].id : 0;
   }
-  panels.whatIf(state.whatIf, state.days, state.selected, state.frames);
+  panels.whatIf(state.whatIf, state.days, state.selected, state.frames, replay);
   const box = $('story');
   box.style.setProperty('--story', story.color);
   $('story-step').textContent = story.step;
@@ -134,13 +140,13 @@ let whatIfTimer = 0;
 function refreshWhatIf(delay = 0) {
   clearTimeout(whatIfTimer);
   whatIfTimer = setTimeout(async () => {
-    if (!state.status || state.status.phase === 'loading') return;
+    if (!state.status || state.status.phase === 'loading' || source.mode !== 'live') return;
     const sensor = `${state.selected}:pm25`;
     try {
-      const result = await api.whatIf(sensor, state.days);
+      const result = await source.whatIf(sensor, state.days);
       if (sensor === `${state.selected}:pm25`) {
         state.whatIf = result;
-        panels.whatIf(state.whatIf, state.days, state.selected, state.frames);
+        panels.whatIf(state.whatIf, state.days, state.selected, state.frames, isReplay());
       }
     } catch {
       // the twin is still calibrating; the next refresh will try again
@@ -155,6 +161,10 @@ function mergeEvents(fresh) {
 }
 
 function apply(update) {
+  if (update.reset) {
+    state.frames = [];
+    state.events = [];
+  }
   state.status = update.status;
   state.network = update.network;
   state.maintenance = update.maintenance;
@@ -174,7 +184,7 @@ function apply(update) {
 
 async function resync() {
   try {
-    const [snapshot, history] = await Promise.all([api.state(), api.history(HISTORY_HOURS)]);
+    const [snapshot, history] = await Promise.all([source.state(), source.history(HISTORY_HOURS)]);
     state.frames = history.frames;
     state.events = [];
     mergeEvents(snapshot.events);
@@ -196,7 +206,7 @@ async function command(action, done) {
 }
 
 function recalibrate(sensor) {
-  command(() => api.recalibrate(sensor), `${sensor.split(':')[0]} marked as recalibrated: its correction is cleared and any injected drift is removed.`);
+  command(() => source.recalibrate(sensor), `${sensor.split(':')[0]} marked as recalibrated: its correction is cleared and any injected drift is removed.`);
 }
 
 // ---- wiring -----------------------------------------------------------------------------
@@ -219,24 +229,30 @@ for (const button of document.querySelectorAll('[data-cam]')) {
 $('compass').addEventListener('click', () => camera.north());
 $('play').addEventListener('click', () => {
   const running = !(state.status && state.status.running);
-  command(() => api.setRunning(running), running ? 'Twin resumed.' : 'Twin paused: the stream holds at the current hour.');
+  command(() => source.setRunning(running), running ? 'Twin resumed.' : 'Twin paused: the stream holds at the current hour.');
 });
 $('inject').addEventListener('click', () => {
   const name = state.selected;
-  command(() => api.inject(`${name}:pm25`), `Drift injected into ${name}: from the next hour its sensor reads too high. Watch the twin detect and heal it.`);
+  command(() => source.inject(`${name}:pm25`), `Drift injected into ${name}: from the next hour its sensor reads too high. Watch the twin detect and heal it.`);
 });
 $('days').addEventListener('input', (e) => {
   state.days = Number(e.target.value);
-  panels.whatIf(state.whatIf, state.days, state.selected, state.frames);
+  panels.whatIf(state.whatIf, state.days, state.selected, state.frames, isReplay());
   refreshWhatIf(150);
 });
 
 drawCity();
 controls();
 render();
-follow(apply, (connected) => {
-  const reconnected = connected && !state.connected;
-  state.connected = connected;
-  if (reconnected) resync();
-  else render();
-});
+openSource()
+  .then((opened) => {
+    source = opened;
+    document.body.dataset.mode = source.mode;
+    source.follow(apply, (connected) => {
+      const reconnected = connected && !state.connected;
+      state.connected = connected;
+      if (reconnected) resync();
+      else render();
+    });
+  })
+  .catch((error) => notice(`Could not reach the twin or its recording: ${error.message}`));
