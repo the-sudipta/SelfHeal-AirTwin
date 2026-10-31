@@ -1,5 +1,5 @@
-# docker compose up                     -> twin on the in-memory backend
-# docker compose --profile kafka up     -> also starts Kafka (KRaft) and the twin on Kafka + Spark
+# docker compose up                     -> live twin and web twin at http://localhost:8080 (memory backend)
+# docker compose --profile kafka up     -> also Kafka (KRaft) and the same twin on Kafka + Spark at :8081
 
 name: selfheal-airtwin
 
@@ -14,7 +14,7 @@ x-twin: &twin
 services:
   twin:
     <<: *twin
-    command: ["replay"]
+    command: ["serve"]
     ports:
       - "8080:8080"
 
@@ -44,7 +44,7 @@ services:
   twin-kafka:
     <<: *twin
     profiles: ["kafka"]
-    command: ["--backend", "kafka", "replay"]
+    command: ["--backend", "kafka", "serve"]
     ports:
       - "8081:8080"
     depends_on:

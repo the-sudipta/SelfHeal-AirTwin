@@ -72,6 +72,7 @@ COPY --from=data /app/data/raw ./data/raw
 COPY data/checksums.sha256 data/README.md ./data/
 COPY configs ./configs
 COPY src ./src
+COPY web ./web
 COPY README.md LICENSE CITATION.cff pyproject.toml ./
 RUN mkdir -p /app/results /app/data/processed \
  && chown -R airtwin:airtwin /app/results /app/data/processed
@@ -80,4 +81,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=60s --timeout=30s --start-period=20s --retries=3 \
     CMD ["python", "-m", "airtwin.cli", "check"]
 ENTRYPOINT ["python", "-m", "airtwin.cli"]
-CMD ["replay"]
+CMD ["serve"]
