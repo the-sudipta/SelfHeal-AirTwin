@@ -140,3 +140,14 @@ def test_bank_updates_every_sensor_and_resets_one() -> None:
     assert out[a].direction == 1
     bank.reset(a)
     assert bank.detectors[a].cusum_pos == 0.0
+
+
+def test_reset_can_forget_the_smoothing_window() -> None:
+    kept, forgot = warmed(), warmed()
+    for det in (kept, forgot):
+        for _ in range(6):
+            det.update(50.0)  # a burst that fills the rolling window
+    kept.reset()
+    forgot.reset(forget_window=True)
+    assert kept.update(5.0).score > 0  # the old burst still dominates the median
+    assert math.isnan(forgot.update(5.0).z)  # window restarted: too few values to judge

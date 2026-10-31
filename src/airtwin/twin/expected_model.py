@@ -10,7 +10,7 @@ drifting sensor cannot pull its expected value along with it.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -172,6 +172,12 @@ class ExpectedValueBank:
             self._buffer = []
             self.calibrated = True
         return {key: math.nan for key in self.models}
+
+    def predict(self, row: Row, keys: Iterable[SensorKey]) -> dict[SensorKey, float]:
+        """Expected values of selected sensors for one row (NaN before calibration)."""
+        if not self.calibrated:
+            return {key: math.nan for key in keys}
+        return {key: self.models[key].predict(row) for key in keys}
 
     def trained_keys(self) -> list[SensorKey]:
         """Sensors whose model is trained, in key order."""

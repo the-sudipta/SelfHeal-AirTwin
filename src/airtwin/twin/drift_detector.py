@@ -83,8 +83,14 @@ class DriftDetector:
         """True once the normal residual level and spreads are known."""
         return not math.isnan(self.ewma_sd)
 
-    def reset(self) -> None:
-        """Clear the statistics and the confirmed state, keeping the learned baseline."""
+    def reset(self, forget_window: bool = False) -> None:
+        """Clear the statistics and the confirmed state, keeping the learned baseline.
+
+        With ``forget_window`` the rolling-median window is emptied too, so residuals computed
+        before the reset (e.g. from an input now known to be faulty) no longer count.
+        """
+        if forget_window:
+            self._median = RollingMedian(self._s.smooth_hours)
         self.ewma = 0.0
         self.cusum_pos = 0.0
         self.cusum_neg = 0.0
@@ -174,6 +180,6 @@ class DriftDetectorBank:
             for key, detector in self.detectors.items()
         }
 
-    def reset(self, key: SensorKey) -> None:
+    def reset(self, key: SensorKey, forget_window: bool = False) -> None:
         """Clear one sensor's statistics, e.g. after a correction was applied."""
-        self.detectors[key].reset()
+        self.detectors[key].reset(forget_window)
