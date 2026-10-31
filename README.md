@@ -5,7 +5,7 @@
 [![CI](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **Status:** under active development. Milestone `v0.4.0` adds the Docker image and the Kafka + Spark backend on top of verified data and the stream interface. Results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** under active development. Milestone `v0.5.0` adds the twin state and the expected-value model (the virtual entity) on top of verified data, both stream backends and the Docker image. Results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 
