@@ -1,0 +1,64 @@
+name: Pages
+
+# Publishes the project page with the web twin replaying a recorded experiment run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "web/**"
+      - "assets/**"
+      - "results/reference/full/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Assemble the site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Assemble _site (landing page, web twin in replay mode, visuals, reference tables)
+        run: |
+          mkdir -p _site/twin/data _site/results
+          cp -r site/index.html site/styles.css site/js _site/
+          cp -r web/index.html web/styles.css web/favicon.svg web/js _site/twin/
+          cp site/data/replay.json _site/twin/data/replay.json
+          cp -r assets _site/assets
+          rm -f _site/assets/README.md _site/assets/*.py
+          cp -r results/reference/full/tables results/reference/full/stats _site/results/
+          touch _site/.nojekyll
+          find _site -type f | sort
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
