@@ -5,7 +5,7 @@
 [![CI](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **Status:** under active development. Milestone `v0.2.0` adds verified data download and cleaning on top of the repository foundation. The Docker quick start, results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** under active development. Milestone `v0.3.0` adds the stream interface and the in-memory replay backend on top of verified data download and cleaning. The Docker quick start, results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 
@@ -31,6 +31,7 @@ Fetch, verify and clean both datasets (Windows PowerShell, inside the virtual en
 $env:PYTHONPATH = "src"
 python -m airtwin.cli download   # downloads both archives and checks their SHA-256
 python -m airtwin.cli prepare    # writes cleaned hourly tables to data/processed/
+python -m airtwin.cli replay     # streams Beijing hour by hour and reports readings per second
 ```
 
 ## Roadmap
