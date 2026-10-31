@@ -50,6 +50,11 @@ strict = true
 warn_unreachable = true
 mypy_path = "src"
 
+[[tool.mypy.overrides]]
+# SciPy ships no type information; its calls are confined to airtwin.experiments.
+module = ["scipy", "scipy.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
