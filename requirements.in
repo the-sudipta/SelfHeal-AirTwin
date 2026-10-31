@@ -5,6 +5,8 @@
 numpy
 pandas
 pyyaml
+confluent-kafka
+pyspark
 
 # Quality tooling
 pytest
