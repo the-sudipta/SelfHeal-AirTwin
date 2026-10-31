@@ -2,6 +2,29 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-10-31
+
+The complete research software: every result of the paper from one command, verified, released and archived.
+
+### Fixed
+
+- A drift confirmed while a correction is active is reported as "published values read high/low": the detector then watches the corrected value, so the direction describes the correction, not the raw sensor.
+
+### Verified
+
+- Final full `reproduce` of this code: all 11 result tables match the reference (`PASS`); tables, statistics and figures are byte-identical to v0.10.0 and to the release run on GitHub's runner. Results committed; the replay regenerated with the corrected event text.
+- Coverage of `airtwin.twin` 99 %; ruff and mypy clean; CI green on both backends.
+
+### Changed
+
+- Final cleanup of the README status and the folder guides; `INTEGRITY.md` complete.
+
+### Archived
+
+- The source of this release is archived on Zenodo, DOI [10.5281/zenodo.23839854](https://doi.org/10.5281/zenodo.23839854) (in `CITATION.cff` and the README); `INTEGRITY.md` shows how to compare the archive with the tag.
+
+[1.0.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v1.0.0
+
 ## [0.10.0] - 2026-10-31
 
 Visuals, the project site and release automation.

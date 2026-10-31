@@ -72,4 +72,11 @@ The attestation names the workflow, the commit and the tag that built the image,
 
 ## 8. Independent archives
 
-From v1.0.0, each release is archived by Zenodo (an immutable snapshot with a DOI) and by Software Heritage (a SWHID); both identifiers appear as badges in the README. Download the Zenodo snapshot of a tag and compare it with `git archive` of the same tag from this repository; any difference shows a change after release.
+Release v1.0.0 is archived on Zenodo with the DOI [10.5281/zenodo.23839854](https://doi.org/10.5281/zenodo.23839854): an immutable copy of the source tree of the tag, uploaded as `git archive` of `v1.0.0`. Compare it with the same tag from this repository; any difference shows a change after release:
+
+```bash
+git archive --format=zip --prefix=SelfHeal-AirTwin-1.0.0/ -o mine.zip v1.0.0
+unzip -q mine.zip -d mine && unzip -q SelfHeal-AirTwin-1.0.0.zip -d zenodo && diff -r mine zenodo && echo identical
+```
+
+The repository is also submitted to Software Heritage, which archives every public commit independently; its SWHID appears as a badge in the README.

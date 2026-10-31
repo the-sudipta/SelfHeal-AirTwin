@@ -6,6 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/the-sudipta/SelfHeal-AirTwin?sort=semver)](https://github.com/the-sudipta/SelfHeal-AirTwin/releases/latest)
 [![Image](https://img.shields.io/badge/image-ghcr.io-2496ED?logo=docker&logoColor=white)](https://github.com/the-sudipta/SelfHeal-AirTwin/pkgs/container/selfheal-airtwin)
 [![Live twin](https://img.shields.io/badge/live%20twin-GitHub%20Pages-2DD4BF)](https://the-sudipta.github.io/SelfHeal-AirTwin/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23839854.svg)](https://doi.org/10.5281/zenodo.23839854)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <picture>
@@ -13,7 +14,7 @@
   <img src="assets/twin-loop-dark.svg" alt="The closed loop: low-cost sensors stream through Kafka and Spark into the digital twin, which detects and heals drift and sends corrections and a maintenance list back to the city." width="100%">
 </picture>
 
-> **Status:** under active development. Milestone `v0.10.0` adds the visuals, the [project site](https://the-sudipta.github.io/SelfHeal-AirTwin/) with the twin replaying a recorded run, and release automation: every tag builds the image, pushes it to GitHub Container Registry with a provenance attestation and an SBOM, reruns every experiment inside it and attaches the verified results and checksums. `v1.0.0` follows with the archived final release; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** `v1.0.0`, the complete research software: live twin on the memory and Kafka + Spark backends, interactive web twin, every experiment of the paper reproduced identically four times (three full runs on a laptop and one by the release workflow on GitHub's runner) and verified against the committed reference tables. See [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 
@@ -199,10 +200,10 @@ All numbers are produced by `airtwin reproduce`; statistics, figures and the ful
 | v0.8.0 | Experiments, baselines, statistics, verification |
 | v0.9.0 | API and interactive web twin |
 | v0.10.0 | Visuals, project site, release automation |
-| v1.0.0 | Full reproduction run and final results |
+| v1.0.0 | Full reproduction run, final results, archived release |
 
 ## How to cite
 
-If you use this software, please cite it using [CITATION.cff](CITATION.cff) (GitHub's "Cite this repository" button gives APA and BibTeX). Released under the [MIT License](LICENSE).
+If you use this software, please cite it with its DOI, [10.5281/zenodo.23839854](https://doi.org/10.5281/zenodo.23839854), or using [CITATION.cff](CITATION.cff) (GitHub's "Cite this repository" button gives APA and BibTeX). Released under the [MIT License](LICENSE).
 
 **Acknowledgements.** The data come from the UCI Machine Learning Repository: Chen, S. (2017), *Beijing Multi-Site Air Quality*, [doi:10.24432/C5RK5G](https://doi.org/10.24432/C5RK5G), with Zhang et al. (2017), *Proc. R. Soc. A* 473: 20170457; and Vito, S. (2008), *Air Quality*, [doi:10.24432/C59K5F](https://doi.org/10.24432/C59K5F), with De Vito et al. (2008), *Sensors and Actuators B* 129(2): 750–757.
