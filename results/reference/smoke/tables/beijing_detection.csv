@@ -1,0 +1,4 @@
+kind,precision_mean,precision_ci_low,precision_ci_high,recall_mean,recall_ci_low,recall_ci_high,f1_mean,f1_ci_low,f1_ci_high,false_alarms_per_1000h_mean,false_alarms_per_1000h_ci_low,false_alarms_per_1000h_ci_high,median_delay_h_mean,median_delay_h_ci_low,median_delay_h_ci_high,runs
+exponential,0.01321585903,,,1,,,0.02608695652,,,1.064052139,,,1428,,,1
+linear,0.02189781022,,,1,,,0.04285714286,,,0.63653119,,,416,,,1
+step,0.02054794521,,,1,,,0.04026845638,,,0.6792832849,,,105,,,1

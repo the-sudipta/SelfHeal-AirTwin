@@ -1,0 +1,13 @@
+variant,metric,pairs,statistic,p_value,effect_size_full_better
+no_neighbours,rmse_drifted_selfheal,30,0,1.862645149e-09,1
+no_neighbours,f1,30,0,1.862645149e-09,1
+no_weather,rmse_drifted_selfheal,30,143,0.06666470878,-0.3849462366
+no_weather,f1,30,170,0.3043724109,0.2183908046
+ewma_only,rmse_drifted_selfheal,30,0,1.862645149e-09,1
+ewma_only,f1,30,0,1.862645149e-09,-1
+cusum_only,rmse_drifted_selfheal,30,,1,0
+cusum_only,f1,30,,1,0
+no_self_healing,rmse_drifted_selfheal,30,0,1.862645149e-09,1
+no_self_healing,f1,30,211,0.670180589,0.09247311828
+no_trust_substitution,rmse_drifted_selfheal,30,190,0.3930501807,-0.1827956989
+no_trust_substitution,f1,30,0,1.862645149e-09,1

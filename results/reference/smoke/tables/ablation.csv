@@ -1,0 +1,3 @@
+variant,precision_mean,precision_ci_low,precision_ci_high,recall_mean,recall_ci_low,recall_ci_high,f1_mean,f1_ci_low,f1_ci_high,false_alarms_per_1000h_mean,false_alarms_per_1000h_ci_low,false_alarms_per_1000h_ci_high,median_delay_h_mean,median_delay_h_ci_low,median_delay_h_ci_high,rmse_drifted_selfheal_mean,rmse_drifted_selfheal_ci_low,rmse_drifted_selfheal_ci_high,rmse_healthy_selfheal_mean,rmse_healthy_selfheal_ci_low,rmse_healthy_selfheal_ci_high,rmse_all_selfheal_mean,rmse_all_selfheal_ci_low,rmse_all_selfheal_ci_high,runs
+full,0.02054794521,,,1,,,0.04026845638,,,0.6792832849,,,105,,,22.35486065,,,3.285783341,,,6.502793533,,,1
+no_trust_substitution,0.007389162562,,,1,,,0.01466992665,,,1.914343803,,,105,,,19.83882917,,,7.600423463,,,9.45410366,,,1

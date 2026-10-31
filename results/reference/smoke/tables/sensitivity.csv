@@ -1,0 +1,5 @@
+value,precision_mean,precision_ci_low,precision_ci_high,recall_mean,recall_ci_low,recall_ci_high,f1_mean,f1_ci_low,f1_ci_high,false_alarms_per_1000h_mean,false_alarms_per_1000h_ci_low,false_alarms_per_1000h_ci_high,median_delay_h_mean,median_delay_h_ci_low,median_delay_h_ci_high,rmse_drifted_selfheal_mean,rmse_drifted_selfheal_ci_low,rmse_drifted_selfheal_ci_high,runs,parameter
+1,0.02054794521,,,1,,,0.04026845638,,,0.6792832849,,,105,,,22.35486065,,,1,threshold_scale
+2,0.03896103896,,,1,,,0.075,,,0.3515172243,,,133,,,20.67107212,,,1,threshold_scale
+0.05,0.02054794521,,,1,,,0.04026845638,,,0.6792832849,,,105,,,22.35486065,,,1,ewma_lambda
+0.05,0.3333333333,,,0.6666666667,,,0.4444444444,,,0.01900093105,,,1234,,,25.35572061,,,1,ewma_lambda_ewma_only

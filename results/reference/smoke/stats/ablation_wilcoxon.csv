@@ -1,0 +1,3 @@
+variant,metric,pairs,statistic,p_value,effect_size_full_better
+no_trust_substitution,rmse_drifted_selfheal,1,0,1,-1
+no_trust_substitution,f1,1,0,1,1
