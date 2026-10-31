@@ -122,6 +122,25 @@ experiments:
     threshold_scales: [1.0]
     ewma_lambdas: [0.05]
     ablation: [full]
+api:
+  host: 127.0.0.1
+  port: 8080
+  dataset: demo
+  variables: [pm25]
+  fast_forward_hours: 4
+  tick_seconds: 0.0
+  history_hours: 3
+  event_log: 5
+  rmse_window_hours: 2
+  poll_s: 0.01
+  keepalive_s: 1.0
+  max_what_if_days: 30
+  web_dir: web
+  inject:
+    kind: step
+    magnitude: 0.4
+    ramp_hours: 2
+    exp_rate: 4.0
 """
 
 
@@ -262,6 +281,28 @@ def test_experiments_section_is_parsed_and_validated(tmp_path: Path) -> None:
     for i, (old, bad, message) in enumerate(cases):
         folder = tmp_path / f"exp{i}"
         folder.mkdir()
+        with pytest.raises(ConfigError, match=message):
+            load_config(write_config(folder, MINIMAL.replace(old, bad)))
+
+
+def test_api_section_is_parsed_and_validated(tmp_path: Path) -> None:
+    api = load_config(write_config(tmp_path, MINIMAL)).api
+    assert (api.dataset, api.variables, api.port) == ("demo", ("pm25",), 8080)
+    assert api.tick_seconds == 0.0
+    assert api.web_dir == tmp_path.resolve() / "web"
+    assert (api.inject.kind, api.inject.magnitude) == ("step", 0.4)
+    cases = [
+        ("variables: [pm25]\n  fast", "variables: [o3]\n  fast", "subset of"),
+        ("port: 8080", "port: 70000", "at most 65535"),
+        ("tick_seconds: 0.0", "tick_seconds: -1.0", "must not be negative"),
+        ("kind: step\n    magnitude", "kind: wave\n    magnitude", "must be one of"),
+        ("magnitude: 0.4\n    ramp", "magnitude: -1.5\n    ramp", "non-zero and above -1"),
+        ("dataset: demo", "dataset: other", "no twin targets"),
+    ]
+    for i, (old, bad, message) in enumerate(cases):
+        folder = tmp_path / f"api{i}"
+        folder.mkdir()
+        assert old in MINIMAL
         with pytest.raises(ConfigError, match=message):
             load_config(write_config(folder, MINIMAL.replace(old, bad)))
 

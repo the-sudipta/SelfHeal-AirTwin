@@ -241,6 +241,36 @@ class ExperimentConfig:
 
 
 @dataclass(frozen=True)
+class InjectSettings:
+    """The drift the web twin injects into one sensor when a visitor asks for it."""
+
+    kind: str
+    magnitude: float  # signed relative size at full strength, e.g. +0.4
+    ramp_hours: int
+    exp_rate: float
+
+
+@dataclass(frozen=True)
+class ApiConfig:
+    """The live twin served over HTTP to the web frontend."""
+
+    host: str
+    port: int
+    dataset: str
+    variables: tuple[str, ...]
+    fast_forward_hours: int
+    tick_seconds: float
+    history_hours: int
+    event_log: int
+    rmse_window_hours: int
+    poll_s: float
+    keepalive_s: float
+    max_what_if_days: int
+    web_dir: Path
+    inject: InjectSettings
+
+
+@dataclass(frozen=True)
 class Config:
     """The complete project configuration."""
 
@@ -249,6 +279,7 @@ class Config:
     stream: StreamConfig
     twin: TwinConfig
     experiments: ExperimentConfig
+    api: ApiConfig
 
 
 def _require(section: Mapping[str, Any], key: str, kind: type, where: str) -> Any:
@@ -564,6 +595,51 @@ def _parse_experiments(raw: Mapping[str, Any], root: Path) -> ExperimentConfig:
     )
 
 
+def _parse_api(raw: Mapping[str, Any], root: Path, twin: TwinConfig) -> ApiConfig:
+    """Build the API section; the dataset and variables must be twinned ones."""
+    where = "api"
+    dataset = _require(raw, "dataset", str, where)
+    target = twin.target(dataset)
+    variables = _names(raw, "variables", where)
+    if not variables or not set(variables) <= set(target.variables):
+        raise ConfigError(f"{where}.variables must be a non-empty subset of {target.variables}")
+    port = _positive_int(raw, "port", where)
+    if port > 65535:
+        raise ConfigError(f"{where}.port must be at most 65535")
+    tick = float(_require(raw, "tick_seconds", float, where))
+    if tick < 0:
+        raise ConfigError(f"{where}.tick_seconds must not be negative")
+    inj = _require(raw, "inject", dict, where)
+    iw = f"{where}.inject"
+    kind = _require(inj, "kind", str, iw)
+    if kind not in DRIFT_TYPES:
+        raise ConfigError(f"{iw}.kind must be one of {DRIFT_TYPES}")
+    magnitude = float(_require(inj, "magnitude", float, iw))
+    if magnitude == 0 or magnitude <= -1:
+        raise ConfigError(f"{iw}.magnitude must be non-zero and above -1")
+    return ApiConfig(
+        host=_require(raw, "host", str, where),
+        port=port,
+        dataset=dataset,
+        variables=variables,
+        fast_forward_hours=_positive_int(raw, "fast_forward_hours", where),
+        tick_seconds=tick,
+        history_hours=_positive_int(raw, "history_hours", where),
+        event_log=_positive_int(raw, "event_log", where),
+        rmse_window_hours=_positive_int(raw, "rmse_window_hours", where),
+        poll_s=_positive_float(raw, "poll_s", where),
+        keepalive_s=_positive_float(raw, "keepalive_s", where),
+        max_what_if_days=_positive_int(raw, "max_what_if_days", where),
+        web_dir=root / _require(raw, "web_dir", str, where),
+        inject=InjectSettings(
+            kind=kind,
+            magnitude=magnitude,
+            ramp_hours=_positive_int(inj, "ramp_hours", iw),
+            exp_rate=_positive_float(inj, "exp_rate", iw),
+        ),
+    )
+
+
 def default_config_path() -> Path:
     """Return the config path from ``AIRTWIN_CONFIG`` or ``configs/default.yaml`` in the cwd."""
     return Path(os.environ.get(CONFIG_ENV_VAR, DEFAULT_CONFIG)).resolve()
@@ -588,10 +664,12 @@ def load_config(path: Path | None = None) -> Config:
     if not isinstance(raw, dict):
         raise ConfigError(f"configuration file is not a mapping: {path}")
     root = path.parent.parent
+    twin = _parse_twin(_require(raw, "twin", dict, "config"))
     return Config(
         root=root,
         data=_parse_data(_require(raw, "data", dict, "config"), root),
         stream=_parse_stream(_require(raw, "stream", dict, "config"), root),
-        twin=_parse_twin(_require(raw, "twin", dict, "config")),
+        twin=twin,
         experiments=_parse_experiments(_require(raw, "experiments", dict, "config"), root),
+        api=_parse_api(_require(raw, "api", dict, "config"), root, twin),
     )

@@ -143,6 +143,25 @@ experiments:
     threshold_scales: [1.0]
     ewma_lambdas: [0.05]
     ablation: [full]
+api:
+  host: 127.0.0.1
+  port: 8080
+  dataset: beijing_multisite
+  variables: [pm25]
+  fast_forward_hours: 4
+  tick_seconds: 0.0
+  history_hours: 3
+  event_log: 5
+  rmse_window_hours: 2
+  poll_s: 0.01
+  keepalive_s: 1.0
+  max_what_if_days: 30
+  web_dir: web
+  inject:
+    kind: step
+    magnitude: 0.4
+    ramp_hours: 2
+    exp_rate: 4.0
 """,
         encoding="utf-8",
     )

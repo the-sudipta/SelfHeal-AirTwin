@@ -136,3 +136,23 @@ experiments:
     threshold_scales: [1.0, 2.0]
     ewma_lambdas: [0.05]
     ablation: [full, no_trust_substitution]
+
+api:                            # airtwin serve: the live twin behind the web frontend
+  host: 0.0.0.0                 # listen on every interface inside the container
+  port: 8080
+  dataset: beijing_multisite
+  variables: [pm25]             # the sensors twinned live (PM2.5 at the 12 sites, as in the experiments)
+  fast_forward_hours: 9600      # replay at full speed past the calibration year and the 30-day baseline
+  tick_seconds: 1.0             # then one hourly tick per second of wall time
+  history_hours: 48             # hours of history the frontend can request (48-hour chart)
+  event_log: 60                 # most recent twin events kept for the log
+  rmse_window_hours: 24         # network error vs the original data, over the last day
+  poll_s: 0.1                   # how often each event-stream client checks for a new tick
+  keepalive_s: 15.0             # comment line that keeps idle event streams open
+  max_what_if_days: 30          # what-if slider range
+  web_dir: web                  # the frontend served at /
+  inject:                       # drift a visitor can inject into the selected site (labelled as injected)
+    kind: step
+    magnitude: 0.4              # the sensor reads 40% too high
+    ramp_hours: 48
+    exp_rate: 4.0
