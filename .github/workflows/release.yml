@@ -1,0 +1,94 @@
+name: Release
+
+# On every signed milestone tag: build the image from the tagged code, push it to GitHub
+# Container Registry, attest its build provenance, describe it with an SBOM, rerun every
+# experiment inside it and verify the numbers, then attach the results and checksums to the
+# GitHub Release of that tag.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Image, provenance, SBOM, reproduction and assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    permissions:
+      contents: write # create the release and upload its assets
+      packages: write # push the image
+      id-token: write # sign the provenance attestation
+      attestations: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/selfheal-airtwin
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Check out the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the image (downloads and verifies the datasets)
+        run: >
+          docker build
+          --build-arg VERSION="${TAG#v}"
+          --build-arg REVISION="${GITHUB_SHA}"
+          --tag "${IMAGE}:${TAG}" .
+
+      - name: Push to GitHub Container Registry
+        id: push
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${TOKEN}" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+          docker push "${IMAGE}:${TAG}"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:${TAG}")
+          digest="${digest#*@}"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          echo "${IMAGE}@${digest}" > IMAGE_DIGEST.txt
+          cat IMAGE_DIGEST.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Software bill of materials
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Reproduce every experiment in the released image and verify against the reference
+        run: |
+          # the container runs as a non-root user; let it write into the mounted results folder
+          chmod -R a+rwX results
+          docker run --rm -v "${PWD}/results:/app/results" "${IMAGE}@${{ steps.push.outputs.digest }}" reproduce
+
+      - name: Package the results and their checksums
+        run: |
+          tar --create --gzip --file results.tar.gz --exclude=reference results
+          container=$(docker create "${IMAGE}@${{ steps.push.outputs.digest }}")
+          docker cp "${container}:/app/data/raw" dataset
+          docker rm "${container}"
+          (cd dataset && grep -v '^#' ../data/checksums.sha256 | sha256sum --check)
+          {
+            grep -v '^#' data/checksums.sha256 | sed 's#  #  data/raw/#'
+            sed 's#  #  results/#' results/SHA256SUMS
+            sha256sum results.tar.gz sbom.spdx.json IMAGE_DIGEST.txt
+          } > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attach to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${TAG}" > /dev/null 2>&1 || gh release create "${TAG}" --verify-tag --title "${TAG}" --notes "See CHANGELOG.md for this version."
+          gh release upload "${TAG}" results.tar.gz SHA256SUMS sbom.spdx.json IMAGE_DIGEST.txt --clobber
