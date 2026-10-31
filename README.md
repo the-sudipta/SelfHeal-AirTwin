@@ -7,6 +7,7 @@
 [![Image](https://img.shields.io/badge/image-ghcr.io-2496ED?logo=docker&logoColor=white)](https://github.com/the-sudipta/SelfHeal-AirTwin/pkgs/container/selfheal-airtwin)
 [![Live twin](https://img.shields.io/badge/live%20twin-GitHub%20Pages-2DD4BF)](https://the-sudipta.github.io/SelfHeal-AirTwin/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23839854.svg)](https://doi.org/10.5281/zenodo.23839854)
+[![SWH](https://archive.softwareheritage.org/badge/swh:1:rel:4ead9712705fffd173382128dbf882bee63d1a7a/)](https://archive.softwareheritage.org/swh:1:rel:4ead9712705fffd173382128dbf882bee63d1a7a;origin=https://github.com/the-sudipta/SelfHeal-AirTwin;visit=swh:1:snp:300485763cdda8acc9fc520b1a2d8ebb2dbe047a)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <picture>

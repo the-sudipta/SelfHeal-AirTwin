@@ -15,6 +15,13 @@ authors:
     email: sudiptakumar400@gmail.com
 version: 1.0.0
 doi: 10.5281/zenodo.23839854
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23839854
+    description: Zenodo archive of the v1.0.0 source
+  - type: swh
+    value: "swh:1:rel:4ead9712705fffd173382128dbf882bee63d1a7a"
+    description: Software Heritage identifier of the v1.0.0 tag
 date-released: 2026-10-31
 license: MIT
 repository-code: "https://github.com/the-sudipta/SelfHeal-AirTwin"

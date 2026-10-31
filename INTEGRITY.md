@@ -79,4 +79,4 @@ git archive --format=zip --prefix=SelfHeal-AirTwin-1.0.0/ -o mine.zip v1.0.0
 unzip -q mine.zip -d mine && unzip -q SelfHeal-AirTwin-1.0.0.zip -d zenodo && diff -r mine zenodo && echo identical
 ```
 
-The repository is also submitted to Software Heritage, which archives every public commit independently; its SWHID appears as a badge in the README.
+Software Heritage archived the repository independently on 2026-10-31: the v1.0.0 tag is [`swh:1:rel:4ead9712705fffd173382128dbf882bee63d1a7a`](https://archive.softwareheritage.org/swh:1:rel:4ead9712705fffd173382128dbf882bee63d1a7a;origin=https://github.com/the-sudipta/SelfHeal-AirTwin;visit=swh:1:snp:300485763cdda8acc9fc520b1a2d8ebb2dbe047a) (it points to the release commit `1260929382b503dc524c2c114e985d5d34dc255c`), in the snapshot `swh:1:snp:300485763cdda8acc9fc520b1a2d8ebb2dbe047a`. A Software Heritage release identifier is the hash of the git tag object, so `git rev-parse v1.0.0` in any clone must print `4ead9712705fffd173382128dbf882bee63d1a7a`.

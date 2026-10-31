@@ -22,6 +22,7 @@ The complete research software: every result of the paper from one command, veri
 ### Archived
 
 - The source of this release is archived on Zenodo, DOI [10.5281/zenodo.23839854](https://doi.org/10.5281/zenodo.23839854) (in `CITATION.cff` and the README); `INTEGRITY.md` shows how to compare the archive with the tag.
+- Software Heritage archived the repository; the v1.0.0 tag is `swh:1:rel:4ead9712705fffd173382128dbf882bee63d1a7a` (badge in the README, identifier in `CITATION.cff`).
 
 [1.0.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v1.0.0
 
