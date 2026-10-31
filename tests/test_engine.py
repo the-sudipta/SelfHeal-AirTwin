@@ -134,6 +134,8 @@ def test_feedback_and_what_if(run: tuple[TwinEngine, list]) -> None:
     assert projection.points_used >= 2
     assert projection.current_relative_error > 0.25
     assert [p.horizon_days for p in projection.projections] == [7, 30]
+    custom = engine.what_if(drifting, [3])
+    assert [p.horizon_days for p in custom.projections] == [3]
 
 
 def test_mark_recalibrated_clears_the_sensor(run: tuple[TwinEngine, list]) -> None:

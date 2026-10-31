@@ -307,15 +307,15 @@ class TwinEngine:
         levels = {k: self._healers[k].typical_level() for k in self.keys}
         return rank_sensors(self.snapshot, self._onsets, levels, self._cfg.feedback)
 
-    def what_if(self, key: SensorKey) -> WhatIfResult:
-        """Project a sensor's error if it is not recalibrated."""
+    def what_if(self, key: SensorKey, horizons_days: Sequence[int] | None = None) -> WhatIfResult:
+        """Project a sensor's error if it is not recalibrated (configured horizons by default)."""
         now = self.snapshot.timestamp if self.snapshot else datetime.min
         settings = self._cfg.what_if
         return project(
             key,
             self._history[key],
             now,
-            settings.horizons_days,
+            horizons_days or settings.horizons_days,
             settings.history_hours,
             settings.min_trend_r2,
         )
