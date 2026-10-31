@@ -222,7 +222,10 @@ class TwinEngine:
         if reading.confirmed_now:
             self._onsets.setdefault(key, now)
             way = "high" if reading.direction > 0 else "low"
-            events.append(TwinEvent(now, EventKind.DETECT, key, f"drift confirmed, reads {way}"))
+            # with a correction active the detector watches the published value, so the
+            # direction says how the correction is off, not how the raw sensor is
+            what = "published values read" if healer.active else "reads"
+            events.append(TwinEvent(now, EventKind.DETECT, key, f"drift confirmed, {what} {way}"))
         if detector.confirmed and self._cfg.heal.enabled:
             events.extend(self._heal(key, now, reading.direction))
         elif reading.confirmed_now:

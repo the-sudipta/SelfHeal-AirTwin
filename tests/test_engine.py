@@ -258,3 +258,27 @@ def test_shared_calibrated_bank_skips_calibration() -> None:
     assert not any(e.kind is EventKind.CALIBRATED for r in results for e in r.events)
     assert math.isfinite(results[0].snapshot.sensors[SensorKey("A", "pm25")].expected)
     assert any(e.kind is EventKind.HEAL for r in results for e in r.events)
+
+
+def test_detection_while_corrected_names_the_published_value() -> None:
+    later = DRIFT_START + 300
+    stream = [
+        Tick(
+            t.timestamp,
+            tuple(
+                Reading(r.site, {"pm25": r.values["pm25"] * (1.5 if r.site == DRIFT_SITE else 1.0)})
+                if i >= later
+                else r
+                for r in t.readings
+            ),
+        )
+        for i, t in enumerate(ticks(later + 400))
+    ]
+    engine = TwinEngine(TWIN, TARGET, SITES)
+    key = SensorKey(DRIFT_SITE, "pm25")
+    events = [e for result in engine.run(stream) for e in result.events if e.key == key]
+    first_heal = next(i for i, e in enumerate(events) if e.kind is EventKind.HEAL)
+    before = [e.message for e in events[:first_heal] if e.kind is EventKind.DETECT]
+    after = [e.message for e in events[first_heal:] if e.kind is EventKind.DETECT]
+    assert before == ["drift confirmed, reads high"]
+    assert after and all(m.startswith("drift confirmed, published values read") for m in after)
