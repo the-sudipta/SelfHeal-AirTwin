@@ -5,7 +5,7 @@ The pytest suite: one test file per module that contains logic.
 | File | What it does |
 |---|---|
 | `test_package.py` | Checks that the package version is semantic and identical in `airtwin/__init__.py`, `pyproject.toml` and `CITATION.cff` |
-| `test_config.py` | Loading the real and minimal configs, path resolution, unknown datasets, stream, Kafka and twin section checks, missing keys, wrong types, `AIRTWIN_CONFIG` |
+| `test_config.py` | Loading the real and minimal configs, path resolution, unknown datasets, stream, Kafka, twin and drift section checks, missing keys, wrong types, `AIRTWIN_CONFIG` |
 | `test_download.py` | Checksum parsing, verified download through `file://` URLs, reuse of good copies, replacement of tampered copies, refusal on mismatch |
 | `test_uci_loader.py` | Decimal commas, the `-200` tag, blank rows, hourly regularisation, duplicate timestamps, wrong layouts |
 | `test_beijing_loader.py` | Nested archive with unrelated files, `NA` handling, timestamps, sorting, duplicates, wrong layouts |
@@ -14,6 +14,7 @@ The pytest suite: one test file per module that contains logic.
 | `test_kafka_stream.py` | JSON encoding with NaN, tick reassembly from split and reordered batches, equality with the memory backend through a fake transport, limit, pause, close, publish failure, idle timeout, the backend factory; one real Kafka + Spark round trip that runs only when `AIRTWIN_KAFKA_TEST_BOOTSTRAP` is set (in CI, inside the image) |
 | `test_state.py` | Sensor keys and their text form, corrections, residual and corrected value, frozen sorted snapshots and their queries |
 | `test_expected_model.py` | Flattening ticks, feature specs and the `use_*` switches, learning a known relationship, missing inputs, deterministic training, untrained sensors, calibration then prediction |
+| `test_drift_detector.py` | Rolling median with gaps, baseline level, robust spread and observed smoothed spreads, warm-up with too few raw or smoothed points, no alarm on stationary noise, step drift confirmed with direction for each method, slow negative drift, watch before confirmation, reset, missing hours pausing the statistics, the per-sensor bank |
 | `test_cli.py` | `airtwin download`, `prepare` and `replay` and `check` on a small generated project, the `--backend` override, failure exit codes, `--version` |
 
 ## How it connects
