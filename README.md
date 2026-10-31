@@ -5,7 +5,7 @@
 [![CI](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **Status:** under active development. Milestone `v0.3.0` adds the stream interface and the in-memory replay backend on top of verified data download and cleaning. The Docker quick start, results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** under active development. Milestone `v0.4.0` adds the Docker image and the Kafka + Spark backend on top of verified data and the stream interface. Results and the live twin appear as later milestones land; see [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 
@@ -21,11 +21,22 @@ Cities fill the gaps between a few expensive reference stations with many low-co
 
 Air-quality alerts, traffic restrictions and health advice are only as good as the sensor data behind them. Catching and correcting drift automatically keeps low-cost networks trustworthy at a fraction of the cost of constant manual calibration.
 
+## Quick start
+
+Install only [Docker](https://docs.docker.com/get-docker/). The image downloads both datasets during the build, verifies their SHA-256 checksums and then runs fully offline.
+
+```powershell
+docker compose up                    # the twin on the in-memory stream backend
+docker compose --profile kafka up    # adds Apache Kafka (KRaft) and runs the twin on Kafka + Spark Structured Streaming
+```
+
+At this milestone both services replay the Beijing dataset hour by hour through their backend and print ticks, readings and readings per second. The live web twin at `http://localhost:8080` and `docker compose run --rm twin reproduce` arrive with later milestones. Generated outputs land in `./results` on your own disk.
+
 ## Data
 
 Two public datasets from the UCI Machine Learning Repository: [Air Quality](https://archive.ics.uci.edu/dataset/360/air+quality) (real sensor drift with a co-located reference analyzer) and [Beijing Multi-Site Air Quality](https://archive.ics.uci.edu/dataset/501) (12 sites, hourly, 2013–2017, used for controlled drift-injection experiments). Both are licensed CC BY 4.0; provenance, checksums and required citations are in [data/README.md](data/README.md).
 
-Fetch, verify and clean both datasets (Windows PowerShell, inside the virtual environment from [CONTRIBUTING.md](CONTRIBUTING.md)):
+Without Docker, fetch, verify and clean both datasets (Windows PowerShell, inside the virtual environment from [CONTRIBUTING.md](CONTRIBUTING.md)):
 
 ```powershell
 $env:PYTHONPATH = "src"
