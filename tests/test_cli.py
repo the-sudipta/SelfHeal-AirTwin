@@ -93,7 +93,7 @@ twin:
     min_data_in_leaf: 1
     seed: 1
   targets:
-    demo:
+    beijing_multisite:
       calibration_hours: 3
       variables: [pm25]
       weather: [temperature]
@@ -175,3 +175,23 @@ def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--version"])
     assert info.value.code == 0
     assert airtwin.__version__ in capsys.readouterr().out
+
+
+def test_twin_command_runs_the_engine(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config = make_project(tmp_path)
+    assert main(["--config", str(config), "download"]) == 0
+    capsys.readouterr()
+    assert main(["--config", str(config), "twin", "--dataset", "beijing_multisite"]) == 0
+    out = capsys.readouterr().out
+    assert "beijing_multisite: 2 hours, 1 sensors" in out
+    assert "maintenance list (0 sensors, top 5):" in out
+
+
+def test_twin_command_prints_events(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config = make_project(tmp_path)
+    assert main(["--config", str(config), "download"]) == 0
+    capsys.readouterr()
+    assert (
+        main(["--config", str(config), "twin", "--dataset", "beijing_multisite", "--events"]) == 0
+    )
+    assert "beijing_multisite: 2 hours" in capsys.readouterr().out

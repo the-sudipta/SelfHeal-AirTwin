@@ -5,9 +5,12 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from pathlib import Path
+
+import pandas as pd
 
 from airtwin import __version__
 from airtwin.config import STREAM_BACKENDS, Config, ConfigError, load_config
@@ -16,6 +19,7 @@ from airtwin.data.download import ChecksumError, download_all, verify_all
 from airtwin.stream import create_stream
 from airtwin.stream.interface import StreamError, StreamSource
 from airtwin.stream.memory_stream import SITE, wide_to_long
+from airtwin.twin.engine import EventKind, TwinEngine
 
 UCI_KEY = "uci_air_quality"
 BEIJING_KEY = "beijing_multisite"
@@ -52,8 +56,8 @@ def _prepare(cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
-def _open_stream(cfg: Config, dataset: str, limit: int | None) -> StreamSource:
-    """Load one verified dataset and wrap it in the configured stream backend."""
+def _load_frame(cfg: Config, dataset: str) -> tuple[pd.DataFrame, list[str]]:
+    """Load one verified dataset as a long table and name its numeric columns."""
     data = cfg.data
     archive = data.raw_dir / data.dataset(dataset).archive
     if dataset == UCI_KEY:
@@ -68,7 +72,55 @@ def _open_stream(cfg: Config, dataset: str, limit: int | None) -> StreamSource:
             columns={"station": SITE}
         )
         columns = [*beijing_loader.POLLUTANT_COLUMNS, *beijing_loader.WEATHER_COLUMNS]
+    return frame, columns
+
+
+def _open_stream(cfg: Config, dataset: str, limit: int | None) -> StreamSource:
+    """Load one verified dataset and wrap it in the configured stream backend."""
+    frame, columns = _load_frame(cfg, dataset)
     return create_stream(cfg.stream, frame, columns, name=dataset, limit=limit)
+
+
+def _twin(cfg: Config, args: argparse.Namespace) -> int:
+    """Run the full twin over one dataset and report events, maintenance list and what-if."""
+    verify_all(cfg.data)
+    frame, columns = _load_frame(cfg, args.dataset)
+    engine = TwinEngine.for_dataset(cfg, args.dataset, frame[SITE].unique())
+    counts: Counter[str] = Counter()
+    hours = 0
+    started = time.perf_counter()
+    stream = create_stream(cfg.stream, frame, columns, name=args.dataset, limit=args.limit)
+    with stream:
+        for result in engine.run(stream):
+            hours += 1
+            for event in result.events:
+                counts[event.kind.value] += 1
+                if args.events and event.kind is not EventKind.WATCH:
+                    print(
+                        f"{event.timestamp:%Y-%m-%d %H:%M} {event.kind.value:12s} "
+                        f"{event.key or ''!s:24} {event.message}"
+                    )
+    elapsed = time.perf_counter() - started
+    summary = ", ".join(f"{kind} {counts[kind]}" for kind in sorted(counts)) or "no events"
+    print(f"{args.dataset}: {hours} hours, {len(engine.keys)} sensors, {elapsed:.1f} s; {summary}")
+    items = engine.maintenance_list()
+    print(f"maintenance list ({len(items)} sensors, top {args.top}):")
+    for item in items[: args.top]:
+        print(f"  {item.rank:2d}. {item.key}  priority {item.priority:.3f}  {item.reason}")
+    if items:
+        what_if = engine.what_if(items[0].key)
+        steps = ", ".join(
+            f"{p.horizon_days} d: {p.relative_error:+.1%}" for p in what_if.projections
+        )
+        print(f"what-if for {items[0].key} without recalibration: {steps} ({what_if.basis})")
+    return 0
+
+
+def _add_twin_args(parser: argparse.ArgumentParser) -> None:
+    """Options of the twin command."""
+    _add_replay_args(parser)
+    parser.add_argument("--top", type=int, default=5, help="maintenance list entries to show")
+    parser.add_argument("--events", action="store_true", help="print every non-watch event")
 
 
 def _check(cfg: Config, args: argparse.Namespace) -> int:
@@ -106,6 +158,11 @@ COMMANDS: dict[str, tuple[str, Handler, Callable[[argparse.ArgumentParser], None
     "download": ("download both datasets and verify their SHA-256 checksums", _download, None),
     "prepare": ("clean both datasets into data/processed (needs download first)", _prepare, None),
     "replay": ("stream one dataset hour by hour and report throughput", _replay, _add_replay_args),
+    "twin": (
+        "run the digital twin over one dataset: detect, heal, rank maintenance",
+        _twin,
+        _add_twin_args,
+    ),
     "check": (
         "verify the configuration and dataset checksums (used as health check)",
         _check,
