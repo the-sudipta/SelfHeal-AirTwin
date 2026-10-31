@@ -15,7 +15,11 @@ The pytest suite: one test file per module that contains logic.
 | `test_state.py` | Sensor keys and their text form, corrections, residual and corrected value, frozen sorted snapshots and their queries |
 | `test_expected_model.py` | Flattening ticks, feature specs and the `use_*` switches, learning a known relationship, missing inputs, deterministic training, untrained sensors, calibration then prediction |
 | `test_drift_detector.py` | Rolling median with gaps, baseline level, robust spread and observed smoothed spreads, warm-up with too few raw or smoothed points, no alarm on stationary noise, step drift confirmed with direction for each method, slow negative drift, watch before confirmation, reset, missing hours pausing the statistics, the per-sensor bank |
-| `test_cli.py` | `airtwin download`, `prepare` and `replay` and `check` on a small generated project, the `--backend` override, failure exit codes, `--version` |
+| `test_self_healer.py` | Gain and offset recovery, outliers and gaps, offset-only mode, gain bounds, too few pairs, proposals with evidence, accept and deactivate, heal, refit interval, fit windows, clear, relative effect |
+| `test_feedback.py` | Ranking by error and duration, listing threshold, confirmed drift without correction, ties, readable reasons |
+| `test_what_if.py` | Linear trend extrapolation, history window, single correction, healthy sensor |
+| `test_engine.py` | A four-site stream where one site drifts by +40 %: calibration, warm-up, detection only on the drifting site, correction near the true gain, maintenance list, what-if, mark-recalibrated; unconvincing or wrong-direction corrections dismissed; a temporary shift corrected and then retired; and the same stream without trust substitution, where healthy neighbours get blamed |
+| `test_cli.py` | `airtwin download`, `prepare` and `replay`, `twin` (with and without event output) and `check` on a small generated project, the `--backend` override, failure exit codes, `--version` |
 
 ## How it connects
 
