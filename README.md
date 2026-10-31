@@ -3,7 +3,15 @@
 **A self-healing digital twin that detects drift in low-cost urban air-quality sensors, corrects it while data streams in, and tells the city which sensor to recalibrate first.**
 
 [![CI](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/the-sudipta/SelfHeal-AirTwin?sort=semver)](https://github.com/the-sudipta/SelfHeal-AirTwin/releases/latest)
+[![Image](https://img.shields.io/badge/image-ghcr.io-2496ED?logo=docker&logoColor=white)](https://github.com/the-sudipta/SelfHeal-AirTwin/pkgs/container/selfheal-airtwin)
+[![Live twin](https://img.shields.io/badge/live%20twin-GitHub%20Pages-2DD4BF)](https://the-sudipta.github.io/SelfHeal-AirTwin/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/twin-loop-light.svg">
+  <img src="assets/twin-loop-dark.svg" alt="The closed loop: low-cost sensors stream through Kafka and Spark into the digital twin, which detects and heals drift and sends corrections and a maintenance list back to the city." width="100%">
+</picture>
 
 > **Status:** under active development. Milestone `v0.9.0` adds the live twin: `docker compose up` serves an interactive 3D web twin of Beijing at `http://localhost:8080`, driven by the real pipeline over a REST and Server-Sent Events API, on the memory or the Kafka + Spark backend. The experiments of `v0.8.0` are rerun and verified by `airtwin reproduce`. README visuals, the project site and release automation follow; see [CHANGELOG.md](CHANGELOG.md).
 
@@ -21,6 +29,12 @@ Cities fill the gaps between a few expensive reference stations with many low-co
 
 Air-quality alerts, traffic restrictions and health advice are only as good as the sensor data behind them. Catching and correcting drift automatically keeps low-cost networks trustworthy at a fraction of the cost of constant manual calibration.
 
+## See it
+
+![The web twin replaying a recorded experiment run: an injected drift is detected, healed and ranked for maintenance](assets/demo.gif)
+
+The interactive twin of Beijing's 12 monitoring sites, replaying a recorded experiment run: **[open it on the project site](https://the-sudipta.github.io/SelfHeal-AirTwin/twin/)**. Every value is real pipeline output. Run it yourself (below) to stream the live twin, inject drift and mark sensors recalibrated.
+
 ## Quick start
 
 Install only [Docker](https://docs.docker.com/get-docker/). The image downloads both datasets during the build, verifies their SHA-256 checksums and then runs fully offline.
@@ -31,20 +45,67 @@ docker compose --profile kafka up    # adds Apache Kafka (KRaft) and the same tw
 docker compose run --rm twin reproduce   # reruns every experiment, rewrites results/, then verifies against the reference
 ```
 
-Open `http://localhost:8080` once the log shows the server is up. The twin first replays the calibration year and the drift baseline at full speed (about 15 seconds), then streams one hour of Beijing data per second: an interactive 3D city with the twin's expected, raw and corrected values for the 12 PM2.5 sites, its events, the maintenance list and the what-if. Press **Inject drift** to make the selected sensor read 40 % too high and watch the twin detect it, correct it and rank it for a field visit; **Mark recalibrated** closes the loop. The API is documented at `http://localhost:8080/api/docs`. `reproduce` takes about 40 minutes on a laptop and ends with `PASS` when every regenerated table matches the committed reference. Generated outputs land in `./results` on your own disk.
+Open `http://localhost:8080` once the log shows the server is up. The twin first replays the calibration year and the drift baseline at full speed (about 15–30 seconds), then streams one hour of Beijing data per second: an interactive 3D city with the twin's expected, raw and corrected values for the 12 PM2.5 sites, its events, the maintenance list and the what-if. Press **Inject drift** to make the selected sensor read 40 % too high and watch the twin detect it, correct it and rank it for a field visit; **Mark recalibrated** closes the loop. The API is documented at `http://localhost:8080/api/docs`. `reproduce` takes about 40–60 minutes on a laptop and ends with `PASS` when every regenerated table matches the committed reference. Generated outputs land in `./results` on your own disk.
 
-## Data
+Release images are on GitHub Container Registry; pull them by the digest in each release's `IMAGE_DIGEST.txt` (`ghcr.io/the-sudipta/selfheal-airtwin@sha256:…`), not by tag.
 
-Two public datasets from the UCI Machine Learning Repository: [Air Quality](https://archive.ics.uci.edu/dataset/360/air+quality) (real sensor drift with a co-located reference analyzer) and [Beijing Multi-Site Air Quality](https://archive.ics.uci.edu/dataset/501) (12 sites, hourly, 2013–2017, used for controlled drift-injection experiments). Both are licensed CC BY 4.0; provenance, checksums and required citations are in [data/README.md](data/README.md).
+<details>
+<summary>Without Docker (Windows PowerShell)</summary>
 
-Without Docker, fetch, verify and clean both datasets (Windows PowerShell, inside the virtual environment from [CONTRIBUTING.md](CONTRIBUTING.md)):
+Inside the virtual environment from [CONTRIBUTING.md](CONTRIBUTING.md):
 
 ```powershell
 $env:PYTHONPATH = "src"
 python -m airtwin.cli download   # downloads both archives and checks their SHA-256
 python -m airtwin.cli prepare    # writes cleaned hourly tables to data/processed/
-python -m airtwin.cli replay     # streams Beijing hour by hour and reports readings per second
+python -m airtwin.cli serve      # the live twin at http://localhost:8080
+python -m airtwin.cli reproduce  # every experiment, then verify
 ```
+
+</details>
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph City["Physical city"]
+        S["Low-cost sensors<br/>12 Beijing sites · UCI device"]
+    end
+    subgraph Stream["Big-data stream"]
+        M["In-memory replay"]
+        K["Apache Kafka (KRaft)<br/>+ Spark Structured Streaming"]
+    end
+    subgraph Twin["Digital twin · engine.py"]
+        E["Expected value<br/>LightGBM per sensor"]
+        D["Drift detector<br/>EWMA + CUSUM"]
+        H["Self-healer<br/>gain + offset"]
+        F["Feedback<br/>maintenance · what-if"]
+    end
+    S -->|hourly readings| M
+    S -->|hourly readings| K
+    M --> E
+    K --> E
+    E -->|residual| D
+    D -->|confirmed drift| H
+    H -->|corrected values| F
+    F -->|maintenance list, recalibration| S
+    Twin --> API["FastAPI · REST + SSE"] --> W["Web twin<br/>3D Beijing"]
+```
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/architecture-light.svg">
+  <img src="assets/architecture-dark.svg" alt="Architecture: verified datasets are streamed in memory or through Kafka and Spark into the twin engine, which wires the expected-value model, drift detector, self-healer and feedback; an API serves the web twin; the experiments reproduce every result." width="100%">
+</picture>
+
+Each hour, every sensor's reading passes the same cycle: the virtual entity predicts the expected value from neighbouring sites and the weather; the active correction turns the raw reading into the published value; the drift detector watches the residual of the published value; on confirmed drift the self-healer fits `raw = gain × expected + offset` and publishes `(raw − offset) / gain`, but only when the correction is large, clearly better and points the right way; untrusted sensors enter their neighbours' models as virtual values (trust substitution); and the maintenance list ranks the sensors to service.
+
+| Big-data V | In SelfHeal-AirTwin |
+|---|---|
+| **Volume** | 420,768 hourly rows from 12 Beijing sites over four years, plus a year of UCI Air Quality; 370 seeded experiment runs |
+| **Velocity** | Every reading streamed hour by hour through Apache Kafka and Spark Structured Streaming (or an in-memory replay) into the twin |
+| **Variety** | Neighbouring sites' readings, weather, low-cost sensor responses and a certified reference analyzer from two datasets, combined in each sensor's expected value |
+| **Veracity** | The main goal: detect drifting sensors and correct their data while it streams |
+| **Value** | A ranked maintenance list, corrected published values and a what-if of the error if a sensor is not visited |
 
 ## Results
 
@@ -105,6 +166,27 @@ python -m airtwin.cli replay     # streams Beijing hour by hour and reports read
 All numbers are produced by `airtwin reproduce`; statistics, figures and the full tables are listed in [results/README.md](results/README.md).
 <!-- results:end -->
 
+## Reproducibility and integrity
+
+- **One command reruns everything.** `docker compose run --rm twin reproduce` regenerates every table, statistic and figure and compares them with the committed reference value by value; CI reruns a seeded slice on every push, and each release reruns all of it inside the released image.
+- **Every change is visible.** Signed commits and tags, a protected `main`, no rewritten history, actions pinned by commit, release images with build-provenance attestations and an SBOM, and SHA-256 sums for data, tables and figures. [INTEGRITY.md](INTEGRITY.md) shows how to check each one.
+
+**Data availability.** Both datasets are public on the UCI Machine Learning Repository under CC BY 4.0: [Beijing Multi-Site Air Quality](https://archive.ics.uci.edu/dataset/501) (12 sites, hourly, 2013–2017; controlled drift-injection experiments and the web twin) and [Air Quality](https://archive.ics.uci.edu/dataset/360/air+quality) (real sensor drift with a co-located reference analyzer). Their checksums, provenance and required citations are in [data/README.md](data/README.md). **Code availability.** All code, configuration and reference results are in this repository under the MIT License; release images are on GitHub Container Registry.
+
+## Repository map
+
+| Folder | Purpose |
+|---|---|
+| [`src/airtwin/`](src/airtwin/README.md) | The Python package: data, streams, the twin, experiments, the API |
+| [`web/`](web/README.md) | The interactive web twin (plain HTML, CSS, ES modules) |
+| [`site/`](site/README.md) | The GitHub Pages project site and the recorded replay |
+| [`configs/`](configs/README.md) | The one configuration file with every tunable value |
+| [`data/`](data/README.md) | Dataset provenance, licences, checksums |
+| [`results/`](results/README.md) | Reference tables, checksums and where every result comes from |
+| [`tests/`](tests/README.md) | One test file per module |
+| [`assets/`](assets/README.md) | README and site visuals |
+| [`.github/`](.github/README_FILE.md) | CI, Pages and Release workflows, contributor forms |
+
 ## Roadmap
 
 | Release | Content |
@@ -119,6 +201,8 @@ All numbers are produced by `airtwin reproduce`; statistics, figures and the ful
 | v0.10.0 | Visuals, project site, release automation |
 | v1.0.0 | Full reproduction run and final results |
 
-## Licence and citation
+## How to cite
 
-Released under the [MIT License](LICENSE). If you use this software, please cite it using [CITATION.cff](CITATION.cff).
+If you use this software, please cite it using [CITATION.cff](CITATION.cff) (GitHub's "Cite this repository" button gives APA and BibTeX). Released under the [MIT License](LICENSE).
+
+**Acknowledgements.** The data come from the UCI Machine Learning Repository: Chen, S. (2017), *Beijing Multi-Site Air Quality*, [doi:10.24432/C5RK5G](https://doi.org/10.24432/C5RK5G), with Zhang et al. (2017), *Proc. R. Soc. A* 473: 20170457; and Vito, S. (2008), *Air Quality*, [doi:10.24432/C59K5F](https://doi.org/10.24432/C59K5F), with De Vito et al. (2008), *Sensors and Actuators B* 129(2): 750–757.

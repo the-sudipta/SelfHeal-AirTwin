@@ -24,9 +24,9 @@ The pytest suite: one test file per module that contains logic.
 | `test_stats.py` | t-based confidence intervals; Wilcoxon test, effect size direction and edge cases |
 | `test_baselines.py` | Linear fits, one-time and rolling calibration, Kalman gain tracking |
 | `test_ablation.py` | Each variant changes exactly one part; model sharing; sensitivity scaling |
-| `test_report_verify.py` | The run plan, table comparison, checksums, figures, README block and replay file |
+| `test_report_verify.py` | The run plan, table comparison, checksums, figures, README block, replay file and the replay's trailing network error |
 | `test_api.py` | The live service on a four-site city: fast-forward then pause, an injected drift detected, healed and ranked first, network error of raw and published values, numbered events, what-if, unknown sensors, a failed start, and every HTTP endpoint including the event stream and the static web twin |
-| `test_cli.py` | `airtwin download`, `prepare` and `replay`, `twin` (with and without event output) and `check` on a small generated project, the `--backend` override, failure exit codes, `--version` |
+| `test_cli.py` | `airtwin download`, `prepare` and `replay`, `twin` (with and without event output), `check` and `report` with read-only repository files on a small generated project, the `--backend` override, failure exit codes, `--version` |
 
 ## How it connects
 
