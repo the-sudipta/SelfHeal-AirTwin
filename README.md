@@ -13,7 +13,7 @@
   <img src="assets/twin-loop-dark.svg" alt="The closed loop: low-cost sensors stream through Kafka and Spark into the digital twin, which detects and heals drift and sends corrections and a maintenance list back to the city." width="100%">
 </picture>
 
-> **Status:** under active development. Milestone `v0.9.0` adds the live twin: `docker compose up` serves an interactive 3D web twin of Beijing at `http://localhost:8080`, driven by the real pipeline over a REST and Server-Sent Events API, on the memory or the Kafka + Spark backend. The experiments of `v0.8.0` are rerun and verified by `airtwin reproduce`. README visuals, the project site and release automation follow; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** under active development. Milestone `v0.10.0` adds the visuals, the [project site](https://the-sudipta.github.io/SelfHeal-AirTwin/) with the twin replaying a recorded run, and release automation: every tag builds the image, pushes it to GitHub Container Registry with a provenance attestation and an SBOM, reruns every experiment inside it and attaches the verified results and checksums. `v1.0.0` follows with the archived final release; see [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 

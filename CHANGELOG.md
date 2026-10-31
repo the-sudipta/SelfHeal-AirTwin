@@ -2,6 +2,34 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-10-31
+
+Visuals, the project site and release automation.
+
+### Added
+
+- Project site on GitHub Pages (`site/`, `.github/workflows/pages.yml`): problem and contribution, the web twin replaying a recorded experiment run, architecture and the five V's, results read from the reference tables, how to reproduce and verify, downloads and citation.
+- The web twin plays `data/replay.json` when no live API answers, with `?start=` and `?step=` to choose where and how fast.
+- README visuals (`assets/`): animated twin-loop hero and architecture diagram in dark and light variants, and a demo GIF recorded from the real replay.
+- Release workflow (`.github/workflows/release.yml`): on every tag, the image is built from the tag, pushed to GitHub Container Registry, given a signed build-provenance attestation and an SPDX SBOM; every experiment is rerun inside it and must pass `verify`; `results.tar.gz`, `SHA256SUMS`, `sbom.spdx.json` and `IMAGE_DIGEST.txt` are attached to the release.
+- `INTEGRITY.md`: how to check data, results, image provenance and release checksums.
+
+### Changed
+
+- The replay carries the live API's fields: the original reading, whether the drift has begun, the maintenance list per hour and the network error.
+- README restructured: badges, hero, demo, quick start, how it works with a Mermaid diagram and the five V's, results, reproducibility and data availability, repository map, citation.
+
+### Fixed
+
+- A full `reproduce` in the container no longer fails at the end on the read-only README and site files.
+- The live twin smoke test can no longer fail when `grep` closes its input early.
+
+### Verified
+
+- A second full `reproduce` run reproduced all 11 reference tables exactly (`PASS`).
+
+[0.10.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.10.0
+
 ## [0.9.0] - 2026-10-31
 
 The live twin: API and interactive web twin.
