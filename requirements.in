@@ -10,10 +10,13 @@ pyspark
 lightgbm
 scipy
 matplotlib
+fastapi
+uvicorn
 
 # Quality tooling
 pytest
 pytest-cov
+httpx2
 ruff
 mypy
 pandas-stubs
