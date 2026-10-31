@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from collections import Counter
@@ -16,6 +17,8 @@ from airtwin import __version__
 from airtwin.config import STREAM_BACKENDS, Config, ConfigError, load_config
 from airtwin.data import beijing_loader, uci_loader
 from airtwin.data.download import ChecksumError, download_all, verify_all
+from airtwin.experiments import report, runner
+from airtwin.experiments.verify import MAX_REPORTED, sha256sums, verify_results
 from airtwin.stream import create_stream
 from airtwin.stream.interface import StreamError, StreamSource
 from airtwin.stream.memory_stream import SITE, wide_to_long
@@ -148,6 +151,109 @@ def _replay(cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
+def _result_dirs(cfg: Config, smoke: bool) -> tuple[Path, Path]:
+    """Output and reference folders of the full or smoke experiment set."""
+    exp = cfg.experiments
+    mode = "smoke" if smoke else "full"
+    output = exp.results_dir / "smoke" if smoke else exp.results_dir
+    return output, exp.reference_dir / mode
+
+
+def _verify(cfg: Config, args: argparse.Namespace) -> int:
+    """Check dataset checksums and compare regenerated tables with the reference, value by value."""
+    verify_all(cfg.data)
+    output, reference = _result_dirs(cfg, args.smoke)
+    problems = verify_results(output, reference, cfg.experiments.tolerance)
+    if problems:
+        for line in problems[:MAX_REPORTED]:
+            print(f"DIFF {line}")
+        extra = len(problems) - MAX_REPORTED
+        print(f"FAIL: {len(problems)} differences" + (f" ({extra} not shown)" if extra > 0 else ""))
+        return 1
+    tables = len(list(reference.rglob("*.csv")))
+    print(
+        f"PASS: datasets verified; {tables} result tables match the reference "
+        f"(tolerance {cfg.experiments.tolerance:g})"
+    )
+    return 0
+
+
+def _report(cfg: Config, args: argparse.Namespace) -> int:
+    """Draw figures, update the README results block and export the web-twin replay."""
+    output, _ = _result_dirs(cfg, args.smoke)
+    figures = report.make_figures(output)
+    print(f"report: {len(figures)} figure files in {output / 'figures'}")
+    replay_file = output / "replay.json"
+    if not args.smoke:
+        report.update_readme(cfg.root / "README.md", report.results_markdown(output))
+        print("report: README results block updated")
+        if replay_file.is_file():
+            report.write_replay(
+                json.loads(replay_file.read_text(encoding="utf-8")),
+                [cfg.root / "site" / "data" / "replay.json"],
+            )
+            print("report: site/data/replay.json written")
+    return 0
+
+
+def _reproduce(cfg: Config, args: argparse.Namespace) -> int:
+    """Run every experiment, write tables, figures and checksums, then verify."""
+    verify_all(cfg.data)
+    output, reference = _result_dirs(cfg, args.smoke)
+    started = time.perf_counter()
+    uci, uci_tests = runner.run_uci(cfg)
+    tables = {"tables/uci_methods.csv": uci, "stats/uci_wilcoxon.csv": uci_tests}
+    print(f"uci: done in {time.perf_counter() - started:.0f} s")
+    plan = runner.experiment_plan(cfg, args.smoke)
+    results = runner.run_all_beijing(cfg, plan)
+    tables.update(runner.summarise_beijing(cfg, plan, results))
+    written = runner.write_tables(output, tables)
+    replay = next((r.replay for r in results if r.replay), None)
+    if replay is not None:
+        report.write_replay(replay, [output / "replay.json"])
+    benchmark = runner.run_throughput(cfg, kafka=args.kafka)
+    runner.write_tables(output, {"benchmark/throughput.csv": benchmark})
+    print(benchmark.to_string(index=False))
+    _report(cfg, args)
+    if not args.smoke:
+        files = [
+            p
+            for p in output.rglob("*")
+            if p.is_file()
+            and p.name != "SHA256SUMS"
+            and "reference" not in p.relative_to(output).parts
+            and "smoke" not in p.relative_to(output).parts
+        ]
+        (output / "SHA256SUMS").write_text(sha256sums(output, files), encoding="utf-8")
+    print(f"reproduce: {len(written)} tables in {time.perf_counter() - started:.0f} s")
+    if args.update_reference:
+        runner.write_tables(
+            reference,
+            {str(p.relative_to(output)).replace("\\", "/"): pd.read_csv(p) for p in written},
+        )
+        print(f"reference tables written to {reference}")
+        return 0
+    return _verify(cfg, args)
+
+
+def _add_experiment_args(parser: argparse.ArgumentParser) -> None:
+    """Options shared by reproduce, verify and report."""
+    parser.add_argument("--smoke", action="store_true", help="the small seeded CI slice")
+
+
+def _add_reproduce_args(parser: argparse.ArgumentParser) -> None:
+    """Options of the reproduce command."""
+    _add_experiment_args(parser)
+    parser.add_argument(
+        "--kafka", action="store_true", help="also time the Kafka + Spark backend (needs a broker)"
+    )
+    parser.add_argument(
+        "--update-reference",
+        action="store_true",
+        help="store the regenerated tables as the new reference",
+    )
+
+
 def _add_replay_args(parser: argparse.ArgumentParser) -> None:
     """Options of the replay command."""
     parser.add_argument("--dataset", choices=[UCI_KEY, BEIJING_KEY], default=BEIJING_KEY)
@@ -162,6 +268,21 @@ COMMANDS: dict[str, tuple[str, Handler, Callable[[argparse.ArgumentParser], None
         "run the digital twin over one dataset: detect, heal, rank maintenance",
         _twin,
         _add_twin_args,
+    ),
+    "reproduce": (
+        "rerun every experiment, write tables, figures and checksums, then verify",
+        _reproduce,
+        _add_reproduce_args,
+    ),
+    "verify": (
+        "compare regenerated tables with the reference and check dataset checksums",
+        _verify,
+        _add_experiment_args,
+    ),
+    "report": (
+        "draw figures, update the README results and export the web-twin replay",
+        _report,
+        _add_experiment_args,
     ),
     "check": (
         "verify the configuration and dataset checksums (used as health check)",

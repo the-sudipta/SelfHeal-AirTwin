@@ -10,6 +10,8 @@ data/processed/
 results/*
 !results/README.md
 !results/SHA256SUMS
+# reference tables that `airtwin verify` compares against
+!results/reference/
 
 # Python
 __pycache__/
