@@ -5,7 +5,7 @@
 [![CI](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/the-sudipta/SelfHeal-AirTwin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **Status:** under active development. Milestone `v0.8.0` adds the experiments: injected drifts on Beijing, real drift on UCI Air Quality, four baselines, statistics over 30 seeds, ablation, sensitivity, what-if checks and throughput, all rerun and verified by `airtwin reproduce`. The API and the live web twin follow in later milestones; see [CHANGELOG.md](CHANGELOG.md).
+> **Status:** under active development. Milestone `v0.9.0` adds the live twin: `docker compose up` serves an interactive 3D web twin of Beijing at `http://localhost:8080`, driven by the real pipeline over a REST and Server-Sent Events API, on the memory or the Kafka + Spark backend. The experiments of `v0.8.0` are rerun and verified by `airtwin reproduce`. README visuals, the project site and release automation follow; see [CHANGELOG.md](CHANGELOG.md).
 
 ## The problem
 

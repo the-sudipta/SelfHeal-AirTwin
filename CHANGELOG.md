@@ -2,6 +2,29 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-10-31
+
+The live twin: API and interactive web twin.
+
+### Added
+
+- `airtwin serve` (now the container's default command): the live twin and the web twin at `http://localhost:8080`; with the `kafka` profile the same twin runs on Kafka + Spark at port 8081.
+- `airtwin.api`: a background run that replays the calibration year and the drift baseline at full speed and then one hour of Beijing data per second; REST endpoints for state, history, maintenance list, events and what-if; Server-Sent Events with one update per hour, resumable after a reconnect; commands to pause, inject a labelled demonstration drift and mark a sensor recalibrated. The network error of raw and published values is measured against the original readings. Docs at `/api/docs`.
+- `web/`: the interactive 3D Beijing twin (plain HTML, CSS, ES modules and SVG, no build step, no external downloads): ring roads, landmarks and buildings; site pins with readings rising to the Twin Core and corrections flying back; the "What is happening now" story (watch, detect, heal, feedback); site panel with raw, expected and corrected values, 48-hour chart and drift score; maintenance list with "Mark recalibrated"; event log; what-if slider. Keyboard access, visible focus, reduced motion and phone layout.
+- `airtwin.data.datasets`: loads either dataset by name for the CLI and the API.
+- `api` configuration section.
+- CI starts the live twin on both backends and checks the API, the page and a command.
+
+### Changed
+
+- `TwinEngine.what_if()` accepts any horizon (the experiments keep 7, 14 and 30 days).
+
+### Fixed
+
+- The Kafka stream no longer counts the time its consumer spends on ticks (a paced or paused twin) as Kafka idle time, which could stop a slow consumer with an idle-timeout error.
+
+[0.9.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.9.0
+
 ## [0.8.0] - 2026-10-31
 
 The experiments: every result in the paper from one command.
