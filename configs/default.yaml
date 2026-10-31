@@ -19,6 +19,15 @@ data:
   beijing_missing_token: "NA"
 
 stream:
-  backend: memory           # memory (in-process replay) or kafka (added in v0.4.0)
+  backend: memory           # memory (in-process replay) or kafka (Kafka + Spark Structured Streaming)
   replay_delay_s: 0.0       # pause between hourly ticks; 0 replays as fast as possible
   uci_site: uci_city        # site name given to the single UCI Air Quality device
+  kafka:
+    bootstrap_servers: kafka:9092    # compose service name; AIRTWIN_KAFKA_BOOTSTRAP overrides it
+    topic_prefix: airtwin            # each run writes to its own topic <prefix>-<dataset>-<id>
+    spark_master: local[1]           # Spark local mode, one core, for reproducible micro-batches
+    spark_driver_memory: 1g
+    spark_jars_dir: /opt/spark-jars  # Spark-Kafka connector JARs, verified and baked into the image
+    max_offsets_per_trigger: 50000   # upper bound of Kafka records per micro-batch
+    poll_timeout_s: 1.0              # wait for the next micro-batch before re-checking progress
+    idle_timeout_s: 120              # stop with an error if no data arrives for this long

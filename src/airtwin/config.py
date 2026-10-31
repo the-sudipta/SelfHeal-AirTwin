@@ -55,6 +55,21 @@ class StreamConfig:
     backend: str
     replay_delay_s: float
     uci_site: str
+    kafka: KafkaConfig
+
+
+@dataclass(frozen=True)
+class KafkaConfig:
+    """Connection and Spark settings of the Kafka + Spark Structured Streaming backend."""
+
+    bootstrap_servers: str
+    topic_prefix: str
+    spark_master: str
+    spark_driver_memory: str
+    spark_jars_dir: Path
+    max_offsets_per_trigger: int
+    poll_timeout_s: float
+    idle_timeout_s: float
 
 
 @dataclass(frozen=True)
@@ -101,9 +116,34 @@ def _parse_data(raw: Mapping[str, Any], root: Path) -> DataConfig:
 
 
 STREAM_BACKENDS = ("memory", "kafka")
+KAFKA_BOOTSTRAP_ENV_VAR = "AIRTWIN_KAFKA_BOOTSTRAP"
 
 
-def _parse_stream(raw: Mapping[str, Any]) -> StreamConfig:
+def _parse_kafka(raw: Mapping[str, Any], root: Path) -> KafkaConfig:
+    """Build the Kafka subsection; ``AIRTWIN_KAFKA_BOOTSTRAP`` overrides the broker address."""
+    where = "stream.kafka"
+    positive = {
+        "max_offsets_per_trigger": int(_require(raw, "max_offsets_per_trigger", int, where)),
+        "poll_timeout_s": float(_require(raw, "poll_timeout_s", float, where)),
+        "idle_timeout_s": float(_require(raw, "idle_timeout_s", float, where)),
+    }
+    for key, value in positive.items():
+        if value <= 0:
+            raise ConfigError(f"{where}.{key} must be positive")
+    bootstrap = _require(raw, "bootstrap_servers", str, where)
+    return KafkaConfig(
+        bootstrap_servers=os.environ.get(KAFKA_BOOTSTRAP_ENV_VAR, bootstrap),
+        topic_prefix=_require(raw, "topic_prefix", str, where),
+        spark_master=_require(raw, "spark_master", str, where),
+        spark_driver_memory=_require(raw, "spark_driver_memory", str, where),
+        spark_jars_dir=root / _require(raw, "spark_jars_dir", str, where),
+        max_offsets_per_trigger=int(positive["max_offsets_per_trigger"]),
+        poll_timeout_s=positive["poll_timeout_s"],
+        idle_timeout_s=positive["idle_timeout_s"],
+    )
+
+
+def _parse_stream(raw: Mapping[str, Any], root: Path) -> StreamConfig:
     """Build the stream section and check the backend name and delay."""
     backend = _require(raw, "backend", str, "stream")
     if backend not in STREAM_BACKENDS:
@@ -112,7 +152,10 @@ def _parse_stream(raw: Mapping[str, Any]) -> StreamConfig:
     if delay < 0:
         raise ConfigError("stream.replay_delay_s must not be negative")
     return StreamConfig(
-        backend=backend, replay_delay_s=delay, uci_site=_require(raw, "uci_site", str, "stream")
+        backend=backend,
+        replay_delay_s=delay,
+        uci_site=_require(raw, "uci_site", str, "stream"),
+        kafka=_parse_kafka(_require(raw, "kafka", dict, "stream"), root),
     )
 
 
@@ -143,5 +186,5 @@ def load_config(path: Path | None = None) -> Config:
     return Config(
         root=root,
         data=_parse_data(_require(raw, "data", dict, "config"), root),
-        stream=_parse_stream(_require(raw, "stream", dict, "config")),
+        stream=_parse_stream(_require(raw, "stream", dict, "config"), root),
     )

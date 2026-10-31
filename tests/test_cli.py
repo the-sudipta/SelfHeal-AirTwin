@@ -40,6 +40,15 @@ stream:
   backend: memory
   replay_delay_s: 0
   uci_site: uci_city
+  kafka:
+    bootstrap_servers: localhost:9092
+    topic_prefix: airtwin
+    spark_master: local[1]
+    spark_driver_memory: 1g
+    spark_jars_dir: jars
+    max_offsets_per_trigger: 100
+    poll_timeout_s: 1
+    idle_timeout_s: 5
 """,
         encoding="utf-8",
     )

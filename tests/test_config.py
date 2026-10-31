@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from airtwin.config import CONFIG_ENV_VAR, ConfigError, default_config_path, load_config
+from airtwin.config import (
+    CONFIG_ENV_VAR,
+    KAFKA_BOOTSTRAP_ENV_VAR,
+    ConfigError,
+    default_config_path,
+    load_config,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT = REPO / "configs" / "default.yaml"
@@ -24,6 +30,15 @@ stream:
   backend: memory
   replay_delay_s: 0
   uci_site: demo_site
+  kafka:
+    bootstrap_servers: localhost:9092
+    topic_prefix: airtwin
+    spark_master: local[1]
+    spark_driver_memory: 1g
+    spark_jars_dir: jars
+    max_offsets_per_trigger: 100
+    poll_timeout_s: 1
+    idle_timeout_s: 5
 """
 
 
@@ -58,6 +73,22 @@ def test_stream_section_is_validated(tmp_path: Path) -> None:
         load_config(
             write_config(bad_delay, MINIMAL.replace("replay_delay_s: 0", "replay_delay_s: -1"))
         )
+
+
+def test_kafka_section_is_validated_and_env_overrides_bootstrap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg = load_config(write_config(tmp_path, MINIMAL))
+    assert cfg.stream.kafka.bootstrap_servers == "localhost:9092"
+    assert cfg.stream.kafka.spark_jars_dir == tmp_path.resolve() / "jars"
+    monkeypatch.setenv(KAFKA_BOOTSTRAP_ENV_VAR, "broker:29092")
+    assert load_config(tmp_path / "configs" / "default.yaml").stream.kafka.bootstrap_servers == (
+        "broker:29092"
+    )
+    bad = tmp_path / "c"
+    bad.mkdir()
+    with pytest.raises(ConfigError, match=r"poll_timeout_s must be positive"):
+        load_config(write_config(bad, MINIMAL.replace("poll_timeout_s: 1", "poll_timeout_s: 0")))
 
 
 def test_paths_resolve_against_project_root(tmp_path: Path) -> None:
