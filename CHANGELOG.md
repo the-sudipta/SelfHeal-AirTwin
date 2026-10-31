@@ -2,6 +2,19 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-10-31
+
+Twin state and the expected-value model (the virtual entity).
+
+### Added
+
+- `airtwin.twin.state`: `SensorKey`, `SensorStatus`, `Correction` (offset and gain), `SensorState` with derived residual and corrected value, and the frozen hourly `TwinSnapshot`, the typed interface between all twin parts.
+- `airtwin.twin.expected_model`: one deterministic, single-threaded LightGBM regressor per sensor predicts the value the sensor should read from the same variable at neighbouring sites, local weather, the reference analyzer and the hour of day; a sensor's own reading is never an input. `ExpectedValueBank` learns from a 720-hour calibration window and then predicts every hour.
+- `twin` section in `configs/default.yaml`: calibration window, LightGBM parameters, and per dataset the twinned variables and the `use_neighbours`, `use_weather`, `use_reference` and `use_time` switches used later for ablation. 72 Beijing sensors (12 sites × 6 pollutants) and 5 UCI sensors are twinned.
+- LightGBM 4.7.0 in the hashed lock; `libgomp1` in the image.
+
+[0.5.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.5.0
+
 ## [0.4.0] - 2026-10-31
 
 Docker image, compose and the Kafka + Spark Structured Streaming backend.
