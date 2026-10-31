@@ -20,6 +20,10 @@ data:
       processed: demo.csv
   uci_missing_value: -200
   beijing_missing_token: "NA"
+stream:
+  backend: memory
+  replay_delay_s: 0
+  uci_site: demo_site
 """
 
 
@@ -37,6 +41,23 @@ def test_default_config_loads_both_datasets() -> None:
     assert set(cfg.data.datasets) == {"uci_air_quality", "beijing_multisite"}
     assert cfg.data.raw_dir == REPO / "data" / "raw"
     assert cfg.data.uci_missing_value == -200.0
+    assert cfg.stream.backend == "memory"
+    assert cfg.stream.replay_delay_s == 0.0
+
+
+def test_stream_section_is_validated(tmp_path: Path) -> None:
+    cfg = load_config(write_config(tmp_path, MINIMAL))
+    assert cfg.stream.uci_site == "demo_site"
+    bad_backend = tmp_path / "a"
+    bad_backend.mkdir()
+    with pytest.raises(ConfigError, match=r"stream\.backend must be one of"):
+        load_config(write_config(bad_backend, MINIMAL.replace("backend: memory", "backend: x")))
+    bad_delay = tmp_path / "b"
+    bad_delay.mkdir()
+    with pytest.raises(ConfigError, match="must not be negative"):
+        load_config(
+            write_config(bad_delay, MINIMAL.replace("replay_delay_s: 0", "replay_delay_s: -1"))
+        )
 
 
 def test_paths_resolve_against_project_root(tmp_path: Path) -> None:

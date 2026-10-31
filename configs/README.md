@@ -4,7 +4,7 @@ The single YAML file that holds every tunable value of the project; code contain
 
 | File | What it does |
 |---|---|
-| `default.yaml` | Data paths, dataset URLs and archive names, download timeout, missing-value markers. Later milestones add stream, twin, experiment and API sections |
+| `default.yaml` | Data paths, dataset URLs and archive names, download timeout, missing-value markers (`data`); stream backend, replay pause and the UCI site name (`stream`). Later milestones add twin, experiment and API sections |
 
 ## How it connects
 

@@ -17,3 +17,8 @@ data:
       processed: beijing_multisite.csv
   uci_missing_value: -200
   beijing_missing_token: "NA"
+
+stream:
+  backend: memory           # memory (in-process replay) or kafka (added in v0.4.0)
+  replay_delay_s: 0.0       # pause between hourly ticks; 0 replays as fast as possible
+  uci_site: uci_city        # site name given to the single UCI Air Quality device

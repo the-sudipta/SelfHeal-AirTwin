@@ -36,6 +36,10 @@ data:
     beijing_multisite: {{url: "{beijing.as_uri()}", archive: bj.zip, processed: bj.csv}}
   uci_missing_value: -200
   beijing_missing_token: "NA"
+stream:
+  backend: memory
+  replay_delay_s: 0
+  uci_site: uci_city
 """,
         encoding="utf-8",
     )

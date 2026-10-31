@@ -49,11 +49,21 @@ class DataConfig:
 
 
 @dataclass(frozen=True)
+class StreamConfig:
+    """Which stream backend replays the data, and how fast."""
+
+    backend: str
+    replay_delay_s: float
+    uci_site: str
+
+
+@dataclass(frozen=True)
 class Config:
     """The complete project configuration."""
 
     root: Path
     data: DataConfig
+    stream: StreamConfig
 
 
 def _require(section: Mapping[str, Any], key: str, kind: type, where: str) -> Any:
@@ -90,6 +100,22 @@ def _parse_data(raw: Mapping[str, Any], root: Path) -> DataConfig:
     )
 
 
+STREAM_BACKENDS = ("memory", "kafka")
+
+
+def _parse_stream(raw: Mapping[str, Any]) -> StreamConfig:
+    """Build the stream section and check the backend name and delay."""
+    backend = _require(raw, "backend", str, "stream")
+    if backend not in STREAM_BACKENDS:
+        raise ConfigError(f"stream.backend must be one of {STREAM_BACKENDS}, got {backend!r}")
+    delay = float(_require(raw, "replay_delay_s", float, "stream"))
+    if delay < 0:
+        raise ConfigError("stream.replay_delay_s must not be negative")
+    return StreamConfig(
+        backend=backend, replay_delay_s=delay, uci_site=_require(raw, "uci_site", str, "stream")
+    )
+
+
 def default_config_path() -> Path:
     """Return the config path from ``AIRTWIN_CONFIG`` or ``configs/default.yaml`` in the cwd."""
     return Path(os.environ.get(CONFIG_ENV_VAR, DEFAULT_CONFIG)).resolve()
@@ -114,4 +140,8 @@ def load_config(path: Path | None = None) -> Config:
     if not isinstance(raw, dict):
         raise ConfigError(f"configuration file is not a mapping: {path}")
     root = path.parent.parent
-    return Config(root=root, data=_parse_data(_require(raw, "data", dict, "config"), root))
+    return Config(
+        root=root,
+        data=_parse_data(_require(raw, "data", dict, "config"), root),
+        stream=_parse_stream(_require(raw, "stream", dict, "config")),
+    )
