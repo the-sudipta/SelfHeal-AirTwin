@@ -39,6 +39,19 @@ stream:
     max_offsets_per_trigger: 100
     poll_timeout_s: 1
     idle_timeout_s: 5
+twin:
+  calibration_hours: 3
+  min_training_rows: 2
+  model: {n_estimators: 5, learning_rate: 0.1, num_leaves: 4, min_data_in_leaf: 1, seed: 1}
+  targets:
+    demo:
+      variables: [pm25]
+      weather: [temperature]
+      reference: []
+      use_neighbours: true
+      use_weather: true
+      use_reference: false
+      use_time: true
 """
 
 
@@ -89,6 +102,36 @@ def test_kafka_section_is_validated_and_env_overrides_bootstrap(
     bad.mkdir()
     with pytest.raises(ConfigError, match=r"poll_timeout_s must be positive"):
         load_config(write_config(bad, MINIMAL.replace("poll_timeout_s: 1", "poll_timeout_s: 0")))
+
+
+def test_twin_section_is_parsed_and_validated(tmp_path: Path) -> None:
+    cfg = load_config(write_config(tmp_path, MINIMAL))
+    assert cfg.twin.calibration_hours == 3
+    assert cfg.twin.model.seed == 1
+    demo = cfg.twin.target("demo")
+    assert demo.variables == ("pm25",)
+    assert demo.use_neighbours is True
+    assert demo.use_reference is False
+    with pytest.raises(ConfigError, match="no twin targets"):
+        cfg.twin.target("other")
+    cases = [
+        ("calibration_hours: 3", "calibration_hours: 0", "must be at least 1"),
+        ("learning_rate: 0.1", "learning_rate: 2", r"learning_rate must be in \(0, 1\]"),
+        ("variables: [pm25]", "variables: []", "must not be empty"),
+        ("weather: [temperature]", "weather: [1]", "must be a list of names"),
+        ("use_time: true", "use_time: 1", "must be bool"),
+    ]
+    for i, (old, bad, message) in enumerate(cases):
+        folder = tmp_path / f"case{i}"
+        folder.mkdir()
+        with pytest.raises(ConfigError, match=message):
+            load_config(write_config(folder, MINIMAL.replace(old, bad)))
+
+
+def test_default_config_targets_both_datasets() -> None:
+    cfg = load_config(DEFAULT)
+    assert set(cfg.twin.targets) == {"uci_air_quality", "beijing_multisite"}
+    assert "nmhc_ref" not in cfg.twin.target("uci_air_quality").reference
 
 
 def test_paths_resolve_against_project_root(tmp_path: Path) -> None:

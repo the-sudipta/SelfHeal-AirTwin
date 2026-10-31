@@ -54,6 +54,24 @@ stream:
     max_offsets_per_trigger: 100
     poll_timeout_s: 1
     idle_timeout_s: 5
+twin:
+  calibration_hours: 3
+  min_training_rows: 2
+  model:
+    n_estimators: 5
+    learning_rate: 0.1
+    num_leaves: 4
+    min_data_in_leaf: 1
+    seed: 1
+  targets:
+    demo:
+      variables: [pm25]
+      weather: [temperature]
+      reference: []
+      use_neighbours: true
+      use_weather: true
+      use_reference: false
+      use_time: true
 """,
         encoding="utf-8",
     )

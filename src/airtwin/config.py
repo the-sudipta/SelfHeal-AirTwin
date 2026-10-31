@@ -73,12 +73,54 @@ class KafkaConfig:
 
 
 @dataclass(frozen=True)
+class ModelParams:
+    """Hyper-parameters of the per-sensor LightGBM expected-value model."""
+
+    n_estimators: int
+    learning_rate: float
+    num_leaves: int
+    min_data_in_leaf: int
+    seed: int
+
+
+@dataclass(frozen=True)
+class TargetSpec:
+    """Which sensors of one dataset get a twin, and which inputs their models may use."""
+
+    variables: tuple[str, ...]
+    weather: tuple[str, ...]
+    reference: tuple[str, ...]
+    use_neighbours: bool
+    use_weather: bool
+    use_reference: bool
+    use_time: bool
+
+
+@dataclass(frozen=True)
+class TwinConfig:
+    """Settings of the twin's virtual entity."""
+
+    calibration_hours: int
+    min_training_rows: int
+    model: ModelParams
+    targets: Mapping[str, TargetSpec]
+
+    def target(self, dataset: str) -> TargetSpec:
+        """Return the target settings of one dataset."""
+        try:
+            return self.targets[dataset]
+        except KeyError as exc:
+            raise ConfigError(f"no twin targets for dataset {dataset!r}") from exc
+
+
+@dataclass(frozen=True)
 class Config:
     """The complete project configuration."""
 
     root: Path
     data: DataConfig
     stream: StreamConfig
+    twin: TwinConfig
 
 
 def _require(section: Mapping[str, Any], key: str, kind: type, where: str) -> Any:
@@ -87,7 +129,7 @@ def _require(section: Mapping[str, Any], key: str, kind: type, where: str) -> An
         raise ConfigError(f"missing key {where}.{key}")
     value = section[key]
     accepted: tuple[type, ...] = (int, float) if kind is float else (kind,)
-    if isinstance(value, bool) or not isinstance(value, accepted):
+    if (isinstance(value, bool) and kind is not bool) or not isinstance(value, accepted):
         raise ConfigError(f"{where}.{key} must be {kind.__name__}, got {type(value).__name__}")
     return value
 
@@ -159,6 +201,58 @@ def _parse_stream(raw: Mapping[str, Any], root: Path) -> StreamConfig:
     )
 
 
+def _names(raw: Mapping[str, Any], key: str, where: str) -> tuple[str, ...]:
+    """Read a list of column names."""
+    values = _require(raw, key, list, where)
+    if not all(isinstance(v, str) and v for v in values):
+        raise ConfigError(f"{where}.{key} must be a list of names")
+    return tuple(values)
+
+
+def _positive_int(raw: Mapping[str, Any], key: str, where: str) -> int:
+    """Read an integer that must be at least 1."""
+    value = int(_require(raw, key, int, where))
+    if value < 1:
+        raise ConfigError(f"{where}.{key} must be at least 1")
+    return value
+
+
+def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
+    """Build the twin section: calibration window, model parameters and per-dataset targets."""
+    model_raw = _require(raw, "model", dict, "twin")
+    learning_rate = float(_require(model_raw, "learning_rate", float, "twin.model"))
+    if not 0 < learning_rate <= 1:
+        raise ConfigError("twin.model.learning_rate must be in (0, 1]")
+    model = ModelParams(
+        n_estimators=_positive_int(model_raw, "n_estimators", "twin.model"),
+        learning_rate=learning_rate,
+        num_leaves=_positive_int(model_raw, "num_leaves", "twin.model"),
+        min_data_in_leaf=_positive_int(model_raw, "min_data_in_leaf", "twin.model"),
+        seed=int(_require(model_raw, "seed", int, "twin.model")),
+    )
+    targets = {}
+    for name, entry in _require(raw, "targets", dict, "twin").items():
+        where = f"twin.targets.{name}"
+        variables = _names(entry, "variables", where)
+        if not variables:
+            raise ConfigError(f"{where}.variables must not be empty")
+        targets[name] = TargetSpec(
+            variables=variables,
+            weather=_names(entry, "weather", where),
+            reference=_names(entry, "reference", where),
+            use_neighbours=_require(entry, "use_neighbours", bool, where),
+            use_weather=_require(entry, "use_weather", bool, where),
+            use_reference=_require(entry, "use_reference", bool, where),
+            use_time=_require(entry, "use_time", bool, where),
+        )
+    return TwinConfig(
+        calibration_hours=_positive_int(raw, "calibration_hours", "twin"),
+        min_training_rows=_positive_int(raw, "min_training_rows", "twin"),
+        model=model,
+        targets=targets,
+    )
+
+
 def default_config_path() -> Path:
     """Return the config path from ``AIRTWIN_CONFIG`` or ``configs/default.yaml`` in the cwd."""
     return Path(os.environ.get(CONFIG_ENV_VAR, DEFAULT_CONFIG)).resolve()
@@ -187,4 +281,5 @@ def load_config(path: Path | None = None) -> Config:
         root=root,
         data=_parse_data(_require(raw, "data", dict, "config"), root),
         stream=_parse_stream(_require(raw, "stream", dict, "config"), root),
+        twin=_parse_twin(_require(raw, "twin", dict, "config")),
     )

@@ -31,3 +31,30 @@ stream:
     max_offsets_per_trigger: 50000   # upper bound of Kafka records per micro-batch
     poll_timeout_s: 1.0              # wait for the next micro-batch before re-checking progress
     idle_timeout_s: 120              # stop with an error if no data arrives for this long
+
+twin:
+  calibration_hours: 720        # first 30 days: the expected-value models learn from this window
+  min_training_rows: 200        # a sensor with fewer usable hours stays in warm-up
+  model:                        # LightGBM regressor per sensor, deterministic single-thread training
+    n_estimators: 200
+    learning_rate: 0.05
+    num_leaves: 31
+    min_data_in_leaf: 20
+    seed: 42
+  targets:
+    beijing_multisite:
+      variables: [pm25, pm10, so2, no2, co, o3]
+      weather: [temperature, pressure, dew_point, rain, wind_speed]
+      reference: []
+      use_neighbours: true      # same variable at the other sites in the same hour
+      use_weather: true
+      use_reference: true
+      use_time: true            # hour of day as sine and cosine
+    uci_air_quality:
+      variables: [s1_co, s2_nmhc, s3_nox, s4_no2, s5_o3]
+      weather: [temperature, relative_humidity, absolute_humidity]
+      reference: [co_ref, c6h6_ref, nox_ref, no2_ref]   # nmhc_ref left out: 90% missing
+      use_neighbours: true
+      use_weather: true
+      use_reference: true
+      use_time: true
