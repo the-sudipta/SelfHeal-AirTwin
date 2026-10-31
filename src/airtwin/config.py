@@ -85,8 +85,9 @@ class ModelParams:
 
 @dataclass(frozen=True)
 class TargetSpec:
-    """Which sensors of one dataset get a twin, and which inputs their models may use."""
+    """Which sensors of one dataset get a twin, how long they calibrate, and their model inputs."""
 
+    calibration_hours: int
     variables: tuple[str, ...]
     weather: tuple[str, ...]
     reference: tuple[str, ...]
@@ -96,14 +97,34 @@ class TargetSpec:
     use_time: bool
 
 
+DRIFT_METHODS = ("both", "ewma", "cusum")
+
+
+@dataclass(frozen=True)
+class DriftSettings:
+    """Parameters of the per-sensor drift detector (EWMA and CUSUM of standardised residuals)."""
+
+    method: str
+    baseline_hours: int
+    min_baseline_points: int
+    min_sigma: float
+    smooth_hours: int
+    ewma_lambda: float
+    ewma_limit: float
+    cusum_k: float
+    cusum_h: float
+    watch_level: float
+    confirm_hours: int
+
+
 @dataclass(frozen=True)
 class TwinConfig:
     """Settings of the twin's virtual entity."""
 
-    calibration_hours: int
     min_training_rows: int
     model: ModelParams
     targets: Mapping[str, TargetSpec]
+    drift: DriftSettings
 
     def target(self, dataset: str) -> TargetSpec:
         """Return the target settings of one dataset."""
@@ -217,8 +238,43 @@ def _positive_int(raw: Mapping[str, Any], key: str, where: str) -> int:
     return value
 
 
+def _positive_float(raw: Mapping[str, Any], key: str, where: str) -> float:
+    """Read a number that must be greater than zero."""
+    value = float(_require(raw, key, float, where))
+    if not value > 0:
+        raise ConfigError(f"{where}.{key} must be positive")
+    return value
+
+
+def _parse_drift(raw: Mapping[str, Any]) -> DriftSettings:
+    """Build the drift detector settings and check their ranges."""
+    where = "twin.drift"
+    method = _require(raw, "method", str, where)
+    if method not in DRIFT_METHODS:
+        raise ConfigError(f"{where}.method must be one of {DRIFT_METHODS}, got {method!r}")
+    ewma_lambda = _positive_float(raw, "ewma_lambda", where)
+    if ewma_lambda > 1:
+        raise ConfigError(f"{where}.ewma_lambda must be in (0, 1]")
+    cusum_k = float(_require(raw, "cusum_k", float, where))
+    if cusum_k < 0:
+        raise ConfigError(f"{where}.cusum_k must not be negative")
+    return DriftSettings(
+        method=method,
+        baseline_hours=_positive_int(raw, "baseline_hours", where),
+        min_baseline_points=_positive_int(raw, "min_baseline_points", where),
+        min_sigma=_positive_float(raw, "min_sigma", where),
+        smooth_hours=_positive_int(raw, "smooth_hours", where),
+        ewma_lambda=ewma_lambda,
+        ewma_limit=_positive_float(raw, "ewma_limit", where),
+        cusum_k=cusum_k,
+        cusum_h=_positive_float(raw, "cusum_h", where),
+        watch_level=_positive_float(raw, "watch_level", where),
+        confirm_hours=_positive_int(raw, "confirm_hours", where),
+    )
+
+
 def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
-    """Build the twin section: calibration window, model parameters and per-dataset targets."""
+    """Build the twin section: model parameters, per-dataset targets and drift settings."""
     model_raw = _require(raw, "model", dict, "twin")
     learning_rate = float(_require(model_raw, "learning_rate", float, "twin.model"))
     if not 0 < learning_rate <= 1:
@@ -237,6 +293,7 @@ def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
         if not variables:
             raise ConfigError(f"{where}.variables must not be empty")
         targets[name] = TargetSpec(
+            calibration_hours=_positive_int(entry, "calibration_hours", where),
             variables=variables,
             weather=_names(entry, "weather", where),
             reference=_names(entry, "reference", where),
@@ -246,10 +303,10 @@ def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
             use_time=_require(entry, "use_time", bool, where),
         )
     return TwinConfig(
-        calibration_hours=_positive_int(raw, "calibration_hours", "twin"),
         min_training_rows=_positive_int(raw, "min_training_rows", "twin"),
         model=model,
         targets=targets,
+        drift=_parse_drift(_require(raw, "drift", dict, "twin")),
     )
 
 

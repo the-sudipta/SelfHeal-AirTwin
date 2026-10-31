@@ -55,8 +55,19 @@ stream:
     poll_timeout_s: 1
     idle_timeout_s: 5
 twin:
-  calibration_hours: 3
   min_training_rows: 2
+  drift:
+    method: both
+    baseline_hours: 3
+    min_baseline_points: 2
+    min_sigma: 0.000001
+    smooth_hours: 2
+    ewma_lambda: 0.1
+    ewma_limit: 3
+    cusum_k: 0.5
+    cusum_h: 5
+    watch_level: 0.5
+    confirm_hours: 2
   model:
     n_estimators: 5
     learning_rate: 0.1
@@ -65,6 +76,7 @@ twin:
     seed: 1
   targets:
     demo:
+      calibration_hours: 3
       variables: [pm25]
       weather: [temperature]
       reference: []

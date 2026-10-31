@@ -23,6 +23,7 @@ T0 = datetime(2013, 3, 1)
 
 def target_spec(**overrides: object) -> TargetSpec:
     base = {
+        "calibration_hours": 10,
         "variables": ("pm25",),
         "weather": ("temperature",),
         "reference": (),

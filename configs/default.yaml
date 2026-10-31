@@ -33,8 +33,20 @@ stream:
     idle_timeout_s: 120              # stop with an error if no data arrives for this long
 
 twin:
-  calibration_hours: 720        # first 30 days: the expected-value models learn from this window
   min_training_rows: 200        # a sensor with fewer usable hours stays in warm-up
+  drift:
+    method: both                # both, ewma or cusum (single methods are ablation settings)
+    baseline_hours: 720         # 30 days after calibration: learn each sensor's normal residual
+    min_baseline_points: 100    # fewer usable residuals keeps the sensor in warm-up
+    min_sigma: 1.0e-6           # floor for the residual spread, avoids division by zero
+    smooth_hours: 24            # rolling median of the residual: suppresses hour-long pollution episodes
+    ewma_lambda: 0.05           # smoothing factor of the EWMA of standardised residuals
+    ewma_limit: 8.0             # alarm when |EWMA| exceeds this many of its observed baseline spreads
+    cusum_k: 0.5                # CUSUM allowance, in residual standard deviations
+    cusum_h: 30.0               # CUSUM decision threshold, in residual standard deviations
+    watch_level: 0.5            # drift score at which a sensor is put on watch
+    confirm_hours: 24           # consecutive alarm hours before drift is confirmed
+    # Defaults chosen on years 1-2 of Beijing (Supplementary S4); years 3-4 are left for evaluation.
   model:                        # LightGBM regressor per sensor, deterministic single-thread training
     n_estimators: 200
     learning_rate: 0.05
@@ -43,6 +55,7 @@ twin:
     seed: 42
   targets:
     beijing_multisite:
+      calibration_hours: 8760   # one full year, so the models see every season
       variables: [pm25, pm10, so2, no2, co, o3]
       weather: [temperature, pressure, dew_point, rain, wind_speed]
       reference: []
@@ -51,6 +64,7 @@ twin:
       use_reference: true
       use_time: true            # hour of day as sine and cosine
     uci_air_quality:
+      calibration_hours: 720    # 30 days: the record spans one year and drifts from the start
       variables: [s1_co, s2_nmhc, s3_nox, s4_no2, s5_o3]
       weather: [temperature, relative_humidity, absolute_humidity]
       reference: [co_ref, c6h6_ref, nox_ref, no2_ref]   # nmhc_ref left out: 90% missing

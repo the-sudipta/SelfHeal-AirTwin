@@ -40,11 +40,23 @@ stream:
     poll_timeout_s: 1
     idle_timeout_s: 5
 twin:
-  calibration_hours: 3
   min_training_rows: 2
+  drift:
+    method: both
+    baseline_hours: 3
+    min_baseline_points: 2
+    min_sigma: 0.000001
+    smooth_hours: 2
+    ewma_lambda: 0.1
+    ewma_limit: 3
+    cusum_k: 0.5
+    cusum_h: 5
+    watch_level: 0.5
+    confirm_hours: 2
   model: {n_estimators: 5, learning_rate: 0.1, num_leaves: 4, min_data_in_leaf: 1, seed: 1}
   targets:
     demo:
+      calibration_hours: 3
       variables: [pm25]
       weather: [temperature]
       reference: []
@@ -106,16 +118,16 @@ def test_kafka_section_is_validated_and_env_overrides_bootstrap(
 
 def test_twin_section_is_parsed_and_validated(tmp_path: Path) -> None:
     cfg = load_config(write_config(tmp_path, MINIMAL))
-    assert cfg.twin.calibration_hours == 3
     assert cfg.twin.model.seed == 1
     demo = cfg.twin.target("demo")
+    assert demo.calibration_hours == 3
     assert demo.variables == ("pm25",)
     assert demo.use_neighbours is True
     assert demo.use_reference is False
     with pytest.raises(ConfigError, match="no twin targets"):
         cfg.twin.target("other")
     cases = [
-        ("calibration_hours: 3", "calibration_hours: 0", "must be at least 1"),
+        ("calibration_hours: 3", "calibration_hours: 0", "calibration_hours must be at least 1"),
         ("learning_rate: 0.1", "learning_rate: 2", r"learning_rate must be in \(0, 1\]"),
         ("variables: [pm25]", "variables: []", "must not be empty"),
         ("weather: [temperature]", "weather: [1]", "must be a list of names"),
@@ -128,10 +140,32 @@ def test_twin_section_is_parsed_and_validated(tmp_path: Path) -> None:
             load_config(write_config(folder, MINIMAL.replace(old, bad)))
 
 
+def test_drift_section_is_parsed_and_validated(tmp_path: Path) -> None:
+    drift = load_config(write_config(tmp_path, MINIMAL)).twin.drift
+    assert drift.method == "both"
+    assert drift.cusum_h == 5.0
+    assert drift.confirm_hours == 2
+    cases = [
+        ("method: both", "method: other", "method must be one of"),
+        ("ewma_lambda: 0.1", "ewma_lambda: 1.5", r"ewma_lambda must be in \(0, 1\]"),
+        ("ewma_lambda: 0.1", "ewma_lambda: 0", "ewma_lambda must be positive"),
+        ("cusum_k: 0.5", "cusum_k: -1", "cusum_k must not be negative"),
+        ("cusum_h: 5", "cusum_h: 0", "cusum_h must be positive"),
+        ("confirm_hours: 2", "confirm_hours: 0", "confirm_hours must be at least 1"),
+    ]
+    for i, (old, bad, message) in enumerate(cases):
+        folder = tmp_path / f"drift{i}"
+        folder.mkdir()
+        with pytest.raises(ConfigError, match=message):
+            load_config(write_config(folder, MINIMAL.replace(old, bad)))
+
+
 def test_default_config_targets_both_datasets() -> None:
     cfg = load_config(DEFAULT)
     assert set(cfg.twin.targets) == {"uci_air_quality", "beijing_multisite"}
     assert "nmhc_ref" not in cfg.twin.target("uci_air_quality").reference
+    assert cfg.twin.target("beijing_multisite").calibration_hours == 8760
+    assert cfg.twin.drift.smooth_hours == 24
 
 
 def test_paths_resolve_against_project_root(tmp_path: Path) -> None:
