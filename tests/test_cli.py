@@ -58,6 +58,26 @@ def test_download_then_prepare(tmp_path: Path, capsys: pytest.CaptureFixture[str
     assert (tmp_path / "data" / "processed" / "bj.csv").is_file()
 
 
+def test_replay_streams_both_datasets(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config = make_project(tmp_path)
+    assert main(["--config", str(config), "download"]) == 0
+    capsys.readouterr()
+    assert main(["--config", str(config), "replay", "--dataset", "uci_air_quality"]) == 0
+    assert "uci_air_quality: 4 ticks, 4 readings" in capsys.readouterr().out
+    assert main(["--config", str(config), "replay", "--limit", "1"]) == 0
+    assert "beijing_multisite: 1 ticks, 1 readings" in capsys.readouterr().out
+
+
+def test_replay_rejects_unavailable_backend(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = make_project(tmp_path)
+    config.write_text(config.read_text().replace("backend: memory", "backend: kafka"))
+    assert main(["--config", str(config), "download"]) == 0
+    assert main(["--config", str(config), "replay"]) == 1
+    assert "not available yet" in capsys.readouterr().err
+
+
 def test_prepare_without_download_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     config = make_project(tmp_path)
     assert main(["--config", str(config), "prepare"]) == 1

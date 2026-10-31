@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -11,12 +12,15 @@ from airtwin import __version__
 from airtwin.config import Config, ConfigError, load_config
 from airtwin.data import beijing_loader, uci_loader
 from airtwin.data.download import ChecksumError, download_all, verify_all
+from airtwin.stream.interface import StreamError
+from airtwin.stream.memory_stream import SITE, MemoryStream
 
 UCI_KEY = "uci_air_quality"
 BEIJING_KEY = "beijing_multisite"
+Handler = Callable[[Config, argparse.Namespace], int]
 
 
-def _download(cfg: Config) -> int:
+def _download(cfg: Config, args: argparse.Namespace) -> int:
     """Download both archives and verify their checksums."""
     for result in download_all(cfg.data):
         state = "downloaded" if result.downloaded else "already present"
@@ -24,7 +28,7 @@ def _download(cfg: Config) -> int:
     return 0
 
 
-def _prepare(cfg: Config) -> int:
+def _prepare(cfg: Config, args: argparse.Namespace) -> int:
     """Verify the archives, clean both datasets and write them to the processed folder."""
     verify_all(cfg.data)
     data = cfg.data
@@ -46,9 +50,56 @@ def _prepare(cfg: Config) -> int:
     return 0
 
 
-COMMANDS: dict[str, tuple[str, Callable[[Config], int]]] = {
-    "download": ("download both datasets and verify their SHA-256 checksums", _download),
-    "prepare": ("clean both datasets into data/processed (needs download first)", _prepare),
+def _open_stream(cfg: Config, dataset: str, limit: int | None) -> MemoryStream:
+    """Load one verified dataset and wrap it in the configured stream backend."""
+    if cfg.stream.backend != "memory":
+        raise StreamError(f"stream backend {cfg.stream.backend!r} is not available yet")
+    data = cfg.data
+    archive = data.raw_dir / data.dataset(dataset).archive
+    options = {"name": dataset, "delay_s": cfg.stream.replay_delay_s, "limit": limit}
+    if dataset == UCI_KEY:
+        frame = uci_loader.load(archive, data.uci_missing_value)
+        columns = [
+            *uci_loader.SENSOR_COLUMNS,
+            *uci_loader.REFERENCE_COLUMNS,
+            *uci_loader.WEATHER_COLUMNS,
+        ]
+        return MemoryStream.from_wide(frame, cfg.stream.uci_site, columns, **options)
+    long = beijing_loader.load(archive, data.beijing_missing_token).rename(
+        columns={"station": SITE}
+    )
+    columns = [*beijing_loader.POLLUTANT_COLUMNS, *beijing_loader.WEATHER_COLUMNS]
+    return MemoryStream(long, columns, **options)  # type: ignore[arg-type]
+
+
+def _replay(cfg: Config, args: argparse.Namespace) -> int:
+    """Stream one verified dataset tick by tick and report throughput."""
+    verify_all(cfg.data)
+    with _open_stream(cfg, args.dataset, args.limit) as stream:
+        ticks = readings = 0
+        started = time.perf_counter()
+        for tick in stream:
+            ticks += 1
+            readings += len(tick.readings)
+        elapsed = time.perf_counter() - started
+    rate = readings / elapsed if elapsed > 0 else float("inf")
+    print(
+        f"{args.dataset}: {ticks} ticks, {readings} readings in {elapsed:.2f} s "
+        f"({rate:,.0f} readings/s, backend {cfg.stream.backend})"
+    )
+    return 0
+
+
+def _add_replay_args(parser: argparse.ArgumentParser) -> None:
+    """Options of the replay command."""
+    parser.add_argument("--dataset", choices=[UCI_KEY, BEIJING_KEY], default=BEIJING_KEY)
+    parser.add_argument("--limit", type=int, default=None, help="stop after this many ticks")
+
+
+COMMANDS: dict[str, tuple[str, Handler, Callable[[argparse.ArgumentParser], None] | None]] = {
+    "download": ("download both datasets and verify their SHA-256 checksums", _download, None),
+    "prepare": ("clean both datasets into data/processed (needs download first)", _prepare, None),
+    "replay": ("stream one dataset hour by hour and report throughput", _replay, _add_replay_args),
 }
 
 
@@ -58,8 +109,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--config", type=Path, default=None, help="path to a YAML config file")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name, (help_text, _) in COMMANDS.items():
-        sub.add_parser(name, help=help_text)
+    for name, (help_text, _, add_args) in COMMANDS.items():
+        command = sub.add_parser(name, help=help_text)
+        if add_args is not None:
+            add_args(command)
     return parser
 
 
@@ -68,10 +121,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         cfg = load_config(args.config)
-        return COMMANDS[args.command][1](cfg)
+        return COMMANDS[args.command][1](cfg, args)
     except (
         ConfigError,
         ChecksumError,
+        StreamError,
         uci_loader.UciFormatError,
         beijing_loader.BeijingFormatError,
     ) as exc:
