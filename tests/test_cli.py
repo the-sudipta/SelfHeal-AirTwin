@@ -1,10 +1,15 @@
 import hashlib
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import airtwin
+from airtwin import cli
 from airtwin.cli import main
+from airtwin.config import StreamConfig
+from airtwin.stream.interface import StreamSource
 from test_beijing_loader import A_ROWS, station_csv
 from test_beijing_loader import make_archive as make_beijing
 from test_uci_loader import ROWS
@@ -77,14 +82,33 @@ def test_replay_streams_both_datasets(tmp_path: Path, capsys: pytest.CaptureFixt
     assert "beijing_multisite: 1 ticks, 1 readings" in capsys.readouterr().out
 
 
-def test_replay_rejects_unavailable_backend(
+def test_backend_flag_overrides_config(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = make_project(tmp_path)
+    assert main(["--config", str(config), "download"]) == 0
+    seen: list[str] = []
+    real = cli.create_stream
+
+    def spy(settings: StreamConfig, *args: Any, **kwargs: Any) -> StreamSource:
+        seen.append(settings.backend)
+        return real(replace(settings, backend="memory"), *args, **kwargs)
+
+    monkeypatch.setattr(cli, "create_stream", spy)
+    assert main(["--config", str(config), "--backend", "kafka", "replay", "--limit", "1"]) == 0
+    assert seen == ["kafka"]
+    assert "backend kafka" in capsys.readouterr().out
+
+
+def test_check_verifies_config_and_archives(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     config = make_project(tmp_path)
-    config.write_text(config.read_text().replace("backend: memory", "backend: kafka"))
+    assert main(["--config", str(config), "check"]) == 1
     assert main(["--config", str(config), "download"]) == 0
-    assert main(["--config", str(config), "replay"]) == 1
-    assert "not available yet" in capsys.readouterr().err
+    capsys.readouterr()
+    assert main(["--config", str(config), "check"]) == 0
+    assert "2 dataset archives verified" in capsys.readouterr().out
 
 
 def test_prepare_without_download_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

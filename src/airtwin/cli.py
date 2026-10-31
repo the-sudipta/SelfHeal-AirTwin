@@ -6,14 +6,16 @@ import argparse
 import sys
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from airtwin import __version__
-from airtwin.config import Config, ConfigError, load_config
+from airtwin.config import STREAM_BACKENDS, Config, ConfigError, load_config
 from airtwin.data import beijing_loader, uci_loader
 from airtwin.data.download import ChecksumError, download_all, verify_all
-from airtwin.stream.interface import StreamError
-from airtwin.stream.memory_stream import SITE, MemoryStream
+from airtwin.stream import create_stream
+from airtwin.stream.interface import StreamError, StreamSource
+from airtwin.stream.memory_stream import SITE, wide_to_long
 
 UCI_KEY = "uci_air_quality"
 BEIJING_KEY = "beijing_multisite"
@@ -50,26 +52,30 @@ def _prepare(cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
-def _open_stream(cfg: Config, dataset: str, limit: int | None) -> MemoryStream:
+def _open_stream(cfg: Config, dataset: str, limit: int | None) -> StreamSource:
     """Load one verified dataset and wrap it in the configured stream backend."""
-    if cfg.stream.backend != "memory":
-        raise StreamError(f"stream backend {cfg.stream.backend!r} is not available yet")
     data = cfg.data
     archive = data.raw_dir / data.dataset(dataset).archive
-    options = {"name": dataset, "delay_s": cfg.stream.replay_delay_s, "limit": limit}
     if dataset == UCI_KEY:
-        frame = uci_loader.load(archive, data.uci_missing_value)
+        frame = wide_to_long(uci_loader.load(archive, data.uci_missing_value), cfg.stream.uci_site)
         columns = [
             *uci_loader.SENSOR_COLUMNS,
             *uci_loader.REFERENCE_COLUMNS,
             *uci_loader.WEATHER_COLUMNS,
         ]
-        return MemoryStream.from_wide(frame, cfg.stream.uci_site, columns, **options)
-    long = beijing_loader.load(archive, data.beijing_missing_token).rename(
-        columns={"station": SITE}
-    )
-    columns = [*beijing_loader.POLLUTANT_COLUMNS, *beijing_loader.WEATHER_COLUMNS]
-    return MemoryStream(long, columns, **options)  # type: ignore[arg-type]
+    else:
+        frame = beijing_loader.load(archive, data.beijing_missing_token).rename(
+            columns={"station": SITE}
+        )
+        columns = [*beijing_loader.POLLUTANT_COLUMNS, *beijing_loader.WEATHER_COLUMNS]
+    return create_stream(cfg.stream, frame, columns, name=dataset, limit=limit)
+
+
+def _check(cfg: Config, args: argparse.Namespace) -> int:
+    """Confirm the configuration loads and every dataset archive matches its checksum."""
+    results = verify_all(cfg.data)
+    print(f"ok: config valid, {len(results)} dataset archives verified")
+    return 0
 
 
 def _replay(cfg: Config, args: argparse.Namespace) -> int:
@@ -100,6 +106,11 @@ COMMANDS: dict[str, tuple[str, Handler, Callable[[argparse.ArgumentParser], None
     "download": ("download both datasets and verify their SHA-256 checksums", _download, None),
     "prepare": ("clean both datasets into data/processed (needs download first)", _prepare, None),
     "replay": ("stream one dataset hour by hour and report throughput", _replay, _add_replay_args),
+    "check": (
+        "verify the configuration and dataset checksums (used as health check)",
+        _check,
+        None,
+    ),
 }
 
 
@@ -108,6 +119,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="airtwin", description="SelfHeal-AirTwin")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--config", type=Path, default=None, help="path to a YAML config file")
+    parser.add_argument(
+        "--backend", choices=STREAM_BACKENDS, default=None, help="override stream.backend"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     for name, (help_text, _, add_args) in COMMANDS.items():
         command = sub.add_parser(name, help=help_text)
@@ -121,6 +135,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         cfg = load_config(args.config)
+        if args.backend is not None:
+            cfg = replace(cfg, stream=replace(cfg.stream, backend=args.backend))
         return COMMANDS[args.command][1](cfg, args)
     except (
         ConfigError,
