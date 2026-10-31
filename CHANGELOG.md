@@ -2,6 +2,19 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-10-31
+
+Stream interface and in-memory replay backend.
+
+### Added
+
+- `airtwin.stream.interface`: the contract every backend follows. `Reading` (one site, one hour, read-only values, NaN for missing), `Tick` (one twinning cycle with readings sorted by unique site), the runtime-checkable `StreamSource` protocol and `check_order` for strictly increasing time.
+- `airtwin.stream.memory_stream`: `MemoryStream`, the default backend, replays a long table as one tick per hour with an optional pause, a tick limit and clean shutdown; `from_wide` adapts the single-site UCI table.
+- `stream` section in `configs/default.yaml` (backend, replay pause, UCI site name), validated at start-up.
+- `airtwin replay` streams a verified dataset and reports ticks, readings and readings per second. On the real data: UCI 9,357 ticks; Beijing 35,064 ticks with 420,768 readings.
+
+[0.3.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.3.0
+
 ## [0.2.0] - 2026-10-30
 
 Verified data download, loaders and cleaning.

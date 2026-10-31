@@ -13,8 +13,8 @@ authors:
   - family-names: Das
     given-names: Sudipta Kumar
     email: sudiptakumar400@gmail.com
-version: 0.2.0
-date-released: 2026-10-30
+version: 0.3.0
+date-released: 2026-10-31
 license: MIT
 repository-code: "https://github.com/the-sudipta/SelfHeal-AirTwin"
 url: "https://the-sudipta.github.io/SelfHeal-AirTwin/"
