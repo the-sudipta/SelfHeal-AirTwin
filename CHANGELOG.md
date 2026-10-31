@@ -2,6 +2,25 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-10-31
+
+Drift detection.
+
+### Added
+
+- `airtwin.twin.drift_detector`: per-sensor detector that learns the normal residual level and robust spread in a 30-day baseline, smooths the residual with a 24-hour rolling median, and runs an EWMA and a two-sided CUSUM with limits measured on the baseline (real air-quality residuals are autocorrelated, so textbook limits for independent noise do not apply). One drift score (1.0 = alarm line) drives healthy, watch and drifting; drift is confirmed after 24 consecutive alarm hours and stays confirmed until reset by the self-healer.
+- `twin.drift` configuration section with range checks.
+
+### Changed
+
+- The calibration window of the expected-value models is now set per dataset: one year for Beijing, so the models see every season; 30 days for UCI.
+
+### Design evidence
+
+- Selected on years 1–2 of Beijing only (years 3–4 untouched): with the defaults, 5.9 confirmed alarms per 1,000 hours per sensor without injected drift, and all 216 injected step drifts of 10 %, 20 % and 30 % confirmed with median delays of 98, 58 and 60 hours. A 30-day calibration produced 12–34 alarms per 1,000 hours; neighbour consensus and an adapting baseline did not help.
+
+[0.6.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.6.0
+
 ## [0.5.0] - 2026-10-31
 
 Twin state and the expected-value model (the virtual entity).
