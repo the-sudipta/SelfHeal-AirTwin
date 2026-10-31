@@ -32,6 +32,7 @@ import pandas as pd
 
 from airtwin.config import Config, TargetSpec
 from airtwin.data import beijing_loader, uci_loader
+from airtwin.data.datasets import BEIJING_KEY, UCI_KEY
 from airtwin.experiments import baselines
 from airtwin.experiments.ablation import FULL, apply_sensitivity, apply_variant, model_inputs
 from airtwin.experiments.drift_injection import DriftSpec, inject, plan_drifts
@@ -42,8 +43,6 @@ from airtwin.twin.engine import EventKind, TwinEngine
 from airtwin.twin.expected_model import ExpectedValueBank, build_specs, column_table, flatten
 from airtwin.twin.state import SensorKey
 
-UCI_KEY = "uci_air_quality"
-BEIJING_KEY = "beijing_multisite"
 METHODS = ("raw", "one_time", "rolling", "kalman", "selfheal")
 BASELINES = METHODS[:-1]
 MAX_WORKERS = 6

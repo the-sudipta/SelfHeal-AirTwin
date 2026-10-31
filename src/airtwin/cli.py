@@ -16,16 +16,15 @@ import pandas as pd
 from airtwin import __version__
 from airtwin.config import STREAM_BACKENDS, Config, ConfigError, load_config
 from airtwin.data import beijing_loader, uci_loader
+from airtwin.data.datasets import BEIJING_KEY, UCI_KEY, load_long
 from airtwin.data.download import ChecksumError, download_all, verify_all
 from airtwin.experiments import report, runner
 from airtwin.experiments.verify import MAX_REPORTED, sha256sums, verify_results
 from airtwin.stream import create_stream
 from airtwin.stream.interface import StreamError, StreamSource
-from airtwin.stream.memory_stream import SITE, wide_to_long
+from airtwin.stream.memory_stream import SITE
 from airtwin.twin.engine import EventKind, TwinEngine
 
-UCI_KEY = "uci_air_quality"
-BEIJING_KEY = "beijing_multisite"
 Handler = Callable[[Config, argparse.Namespace], int]
 
 
@@ -59,35 +58,16 @@ def _prepare(cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
-def _load_frame(cfg: Config, dataset: str) -> tuple[pd.DataFrame, list[str]]:
-    """Load one verified dataset as a long table and name its numeric columns."""
-    data = cfg.data
-    archive = data.raw_dir / data.dataset(dataset).archive
-    if dataset == UCI_KEY:
-        frame = wide_to_long(uci_loader.load(archive, data.uci_missing_value), cfg.stream.uci_site)
-        columns = [
-            *uci_loader.SENSOR_COLUMNS,
-            *uci_loader.REFERENCE_COLUMNS,
-            *uci_loader.WEATHER_COLUMNS,
-        ]
-    else:
-        frame = beijing_loader.load(archive, data.beijing_missing_token).rename(
-            columns={"station": SITE}
-        )
-        columns = [*beijing_loader.POLLUTANT_COLUMNS, *beijing_loader.WEATHER_COLUMNS]
-    return frame, columns
-
-
 def _open_stream(cfg: Config, dataset: str, limit: int | None) -> StreamSource:
     """Load one verified dataset and wrap it in the configured stream backend."""
-    frame, columns = _load_frame(cfg, dataset)
+    frame, columns = load_long(cfg, dataset)
     return create_stream(cfg.stream, frame, columns, name=dataset, limit=limit)
 
 
 def _twin(cfg: Config, args: argparse.Namespace) -> int:
     """Run the full twin over one dataset and report events, maintenance list and what-if."""
     verify_all(cfg.data)
-    frame, columns = _load_frame(cfg, args.dataset)
+    frame, columns = load_long(cfg, args.dataset)
     engine = TwinEngine.for_dataset(cfg, args.dataset, frame[SITE].unique())
     counts: Counter[str] = Counter()
     hours = 0
