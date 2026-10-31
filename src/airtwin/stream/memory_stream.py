@@ -16,6 +16,13 @@ TIMESTAMP = "timestamp"
 SITE = "site"
 
 
+def wide_to_long(frame: pd.DataFrame, site: str) -> pd.DataFrame:
+    """Turn a single-site table indexed by timestamp into the long layout with a site column."""
+    long = frame.reset_index().rename(columns={frame.index.name or "index": TIMESTAMP})
+    long.insert(1, SITE, site)
+    return long
+
+
 class MemoryStream:
     """Replay a long table (one row per site and hour) tick by tick.
 
@@ -69,14 +76,18 @@ class MemoryStream:
         cls, frame: pd.DataFrame, site: str, value_columns: Sequence[str], **kwargs: object
     ) -> MemoryStream:
         """Build a stream from a single-site table indexed by timestamp (e.g. UCI Air Quality)."""
-        long = frame.reset_index().rename(columns={frame.index.name or "index": TIMESTAMP})
-        long.insert(1, SITE, site)
-        return cls(long, value_columns, **kwargs)  # type: ignore[arg-type]
+        return cls(wide_to_long(frame, site), value_columns, **kwargs)  # type: ignore[arg-type]
 
     @property
     def n_rows(self) -> int:
         """Number of site-hour rows available for replay."""
         return len(self._times)
+
+    @property
+    def n_ticks(self) -> int:
+        """Number of ticks a full iteration yields, taking the limit into account."""
+        distinct = len(np.unique(self._times))
+        return distinct if self._limit is None else min(distinct, self._limit)
 
     def _ticks(self) -> Iterator[Tick]:
         """Yield one tick per distinct timestamp."""
