@@ -2,7 +2,7 @@
 
 ## What this can and cannot promise
 
-Nothing can stop the author from adding new commits to this repository. What the measures below do is make every change **visible**: any rewrite of history, or any swap of data, results or images, can be detected by anyone, without trusting the author. This document grows with each milestone as new safeguards are added.
+Nothing can stop the author from adding new commits to this repository. What the measures below do is make every change **visible**: any rewrite of history, or any swap of data, results or images, can be detected by anyone, without trusting the author.
 
 ## 1. Signed commits and tags
 

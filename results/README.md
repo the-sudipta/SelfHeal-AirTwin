@@ -25,4 +25,4 @@ Outputs of `airtwin reproduce`. Everything here is generated; only this file, `S
 
 - Settings of every experiment are in the `experiments` section of `configs/default.yaml`; the code is in `src/airtwin/experiments/`.
 - `airtwin verify` checks the dataset checksums and compares the regenerated tables with `reference/` within an absolute tolerance of 1e-6, printing PASS or every difference.
-- After the milestone runs, the final tables and figures are attached to the GitHub Release.
+- For every release tag, the Release workflow reruns all experiments inside the released image and attaches the tables, statistics, figures and checksums to the GitHub Release (`results.tar.gz`, `SHA256SUMS`).

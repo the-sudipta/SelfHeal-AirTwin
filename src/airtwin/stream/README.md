@@ -12,7 +12,7 @@ Turns a cleaned hourly table into a live feed: one tick per hour, each holding e
 ## How it connects
 
 - Input comes from the loaders in `airtwin.data`; the backend and replay pause come from the `stream` section of `configs/default.yaml`.
-- The twin engine (later milestone) consumes any `StreamSource`, so it never knows which backend is running.
+- The twin engine (`twin/engine.py`) consumes any `StreamSource`, so it never knows which backend is running.
 - Both backends implement the same protocol, which makes them interchangeable; `--backend kafka` switches without code changes.
 - The Kafka backend needs a broker (the `kafka` service in `docker-compose.yml`) and the connector JARs baked into the image under `/opt/spark-jars`.
 - `airtwin replay` runs a backend over a full dataset and reports ticks, readings and readings per second.
