@@ -12,8 +12,10 @@ from dataclasses import replace
 from pathlib import Path
 
 import pandas as pd
+import uvicorn
 
 from airtwin import __version__
+from airtwin.api.app import create_app
 from airtwin.config import STREAM_BACKENDS, Config, ConfigError, load_config
 from airtwin.data import beijing_loader, uci_loader
 from airtwin.data.datasets import BEIJING_KEY, UCI_KEY, load_long
@@ -234,6 +236,23 @@ def _add_reproduce_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _serve(cfg: Config, args: argparse.Namespace) -> int:
+    """Serve the live twin's API and the web twin until interrupted."""
+    uvicorn.run(
+        create_app(cfg),
+        host=args.host or cfg.api.host,
+        port=args.port or cfg.api.port,
+        log_level="info",
+    )
+    return 0
+
+
+def _add_serve_args(parser: argparse.ArgumentParser) -> None:
+    """Options of the serve command."""
+    parser.add_argument("--host", default=None, help="override api.host")
+    parser.add_argument("--port", type=int, default=None, help="override api.port")
+
+
 def _add_replay_args(parser: argparse.ArgumentParser) -> None:
     """Options of the replay command."""
     parser.add_argument("--dataset", choices=[UCI_KEY, BEIJING_KEY], default=BEIJING_KEY)
@@ -263,6 +282,11 @@ COMMANDS: dict[str, tuple[str, Handler, Callable[[argparse.ArgumentParser], None
         "draw figures, update the README results and export the web-twin replay",
         _report,
         _add_experiment_args,
+    ),
+    "serve": (
+        "run the live twin: API and web twin at http://localhost:8080",
+        _serve,
+        _add_serve_args,
     ),
     "check": (
         "verify the configuration and dataset checksums (used as health check)",
