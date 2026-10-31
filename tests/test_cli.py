@@ -255,3 +255,23 @@ def test_twin_command_prints_events(tmp_path: Path, capsys: pytest.CaptureFixtur
         main(["--config", str(config), "twin", "--dataset", "beijing_multisite", "--events"]) == 0
     )
     assert "beijing_multisite: 2 hours" in capsys.readouterr().out
+
+
+def test_report_leaves_read_only_repository_files_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = make_project(tmp_path)
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "replay.json").write_text("{}", encoding="utf-8")
+
+    def read_only(*args: Any) -> None:
+        raise PermissionError("read-only file system")
+
+    monkeypatch.setattr(cli.report, "make_figures", lambda output: [])
+    monkeypatch.setattr(cli.report, "results_markdown", lambda output: "")
+    monkeypatch.setattr(cli.report, "update_readme", read_only)
+    monkeypatch.setattr(cli.report, "write_replay", read_only)
+    assert main(["--config", str(config), "report"]) == 0
+    out = capsys.readouterr().out
+    assert "README.md results block is read-only here (container); left unchanged" in out
+    assert "site/data/replay.json is read-only here (container); left unchanged" in out

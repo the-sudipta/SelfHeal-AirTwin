@@ -167,15 +167,30 @@ def _report(cfg: Config, args: argparse.Namespace) -> int:
     print(f"report: {len(figures)} figure files in {output / 'figures'}")
     replay_file = output / "replay.json"
     if not args.smoke:
-        report.update_readme(cfg.root / "README.md", report.results_markdown(output))
-        print("report: README results block updated")
+        _update_repository_file(
+            "README.md results block",
+            lambda: report.update_readme(cfg.root / "README.md", report.results_markdown(output)),
+        )
         if replay_file.is_file():
-            report.write_replay(
-                json.loads(replay_file.read_text(encoding="utf-8")),
-                [cfg.root / "site" / "data" / "replay.json"],
+            replay = json.loads(replay_file.read_text(encoding="utf-8"))
+            _update_repository_file(
+                "site/data/replay.json",
+                lambda: report.write_replay(replay, [cfg.root / "site" / "data" / "replay.json"]),
             )
-            print("report: site/data/replay.json written")
     return 0
+
+
+def _update_repository_file(label: str, write: Callable[[], None]) -> None:
+    """Update a file of the source checkout; in the container these files are read-only.
+
+    The results themselves are always written to the results folder; the README block and the
+    web-twin replay belong to the repository and only change when run from a checkout.
+    """
+    try:
+        write()
+        print(f"report: {label} updated")
+    except PermissionError:
+        print(f"report: {label} is read-only here (container); left unchanged")
 
 
 def _reproduce(cfg: Config, args: argparse.Namespace) -> int:
