@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A self-healing digital twin that detects drift in low-cost urban air-quality sensors, corrects it while data streams in, and tells the city which sensor to recalibrate first.">
+<title>SelfHeal-AirTwin</title>
+<link rel="icon" href="twin/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="js/site.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar">
+  <a class="logo" href="#top">SelfHeal-Air<span>Twin</span></a>
+  <nav aria-label="Sections">
+    <a href="#problem">Problem</a>
+    <a href="#twin">Live twin</a>
+    <a href="#how">How it works</a>
+    <a href="#results">Results</a>
+    <a href="#verify">Verify</a>
+    <a href="#download">Download</a>
+    <a href="https://github.com/the-sudipta/SelfHeal-AirTwin">GitHub</a>
+  </nav>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <p class="eyebrow">Big data · digital twin · urban air quality</p>
+  <h1>Sensors drift. The twin notices, heals the data and tells the city which sensor to fix.</h1>
+  <p class="lead">SelfHeal-AirTwin is a self-healing digital twin for low-cost air-quality sensor networks. It streams every hourly reading, predicts what each sensor should read, detects drift, corrects it online and closes the loop with a ranked maintenance list.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="twin/">Open the twin replay</a>
+    <a class="btn" href="https://github.com/the-sudipta/SelfHeal-AirTwin#quick-start">Run it with Docker</a>
+  </div>
+  <picture>
+    <source srcset="assets/twin-loop-light.svg" media="(prefers-color-scheme: light)">
+    <img class="figure" src="assets/twin-loop-dark.svg" alt="The closed loop: low-cost sensors stream through Kafka and Spark into the digital twin, which detects and heals drift and sends corrections and a maintenance list back to the city." width="1200" height="400">
+  </picture>
+</section>
+
+<section class="reveal" id="problem">
+  <h2>The problem</h2>
+  <p>Cities fill the gaps between a few expensive reference stations with many low-cost air-quality sensors. These sensors drift: their readings slowly move away from the truth, and nobody notices until decisions have already been made on wrong numbers. Existing big-data air-quality work forecasts pollution well but assumes the sensor data is correct.</p>
+  <div class="grid3">
+    <article class="tile">
+      <h3>A drift-aware twin per sensor</h3>
+      <p>A virtual entity predicts the value each sensor should read from neighbouring sensors, weather and the reference analyzer, and turns the residual into a smoothed drift score (EWMA and CUSUM).</p>
+    </article>
+    <article class="tile">
+      <h3>Self-healing in the stream</h3>
+      <p>Once drift is confirmed, the twin estimates an offset and gain correction online and publishes corrected values, but only when the correction is large, clearly better and points the right way.</p>
+    </article>
+    <article class="tile">
+      <h3>Feedback to the physical network</h3>
+      <p>A ranked maintenance list says which sensor to recalibrate first and why; a what-if shows how the error grows if it is left alone. This closed loop makes it a digital twin, not a digital shadow.</p>
+    </article>
+  </div>
+  <p class="note">Why it matters: air-quality alerts, traffic restrictions and health advice are only as good as the sensor data behind them. Catching and correcting drift automatically keeps low-cost networks trustworthy at a fraction of the cost of constant manual calibration.</p>
+</section>
+
+<section class="reveal" id="twin">
+  <h2>The twin, live</h2>
+  <p>The interactive 3D twin of Beijing's 12 monitoring sites. Here it plays a recorded experiment run (30 days around injected drifts); run it locally with <code>docker compose up</code> to stream the live twin, inject drift yourself and mark sensors recalibrated.</p>
+  <div class="frame">
+    <iframe src="twin/" title="SelfHeal-AirTwin web twin replaying a recorded experiment run" loading="lazy"></iframe>
+  </div>
+  <p class="cta"><a class="btn" href="twin/">Open full screen</a></p>
+</section>
+
+<section class="reveal" id="how">
+  <h2>How it works</h2>
+  <picture>
+    <source srcset="assets/architecture-light.svg" media="(prefers-color-scheme: light)">
+    <img class="figure" src="assets/architecture-dark.svg" alt="Architecture: verified datasets are streamed in memory or through Kafka and Spark into the twin engine, which wires the expected-value model, drift detector, self-healer and feedback; an API serves the web twin; the experiments reproduce every result." width="1200" height="520" loading="lazy">
+  </picture>
+  <h3>Big data, all five V's</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">V</th><th scope="col">In SelfHeal-AirTwin</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Volume</th><td>420,768 hourly rows from 12 Beijing sites over four years, plus a year of UCI Air Quality; 370 seeded experiment runs</td></tr>
+        <tr><th scope="row">Velocity</th><td>Every reading streamed hour by hour through Apache Kafka and Spark Structured Streaming (or an in-memory replay) into the twin</td></tr>
+        <tr><th scope="row">Variety</th><td>Two datasets: neighbouring sites' readings, weather, low-cost sensor responses and a certified reference analyzer, combined in each sensor's expected value</td></tr>
+        <tr><th scope="row">Veracity</th><td>The main goal: detect drifting sensors and correct their data while it streams</td></tr>
+        <tr><th scope="row">Value</th><td>A ranked maintenance list, corrected published values and a what-if of the error if a sensor is not visited</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="reveal" id="results">
+  <h2>Results</h2>
+  <p>Read directly from the reference tables in the repository (<code>results/reference/full</code>), produced by <code>airtwin reproduce</code>. Beijing: PM2.5 drifts of 20–50 % injected into 3 of 12 sites, 30 seeds per drift type, evaluated on years 3–4.</p>
+  <div class="stats" id="headline" aria-live="polite"></div>
+  <h3>RMSE of published values over all sensors (µg/m³, mean [95 % CI])</h3>
+  <div class="table-wrap" id="t-methods"><p class="muted">Loading…</p></div>
+  <h3>Detection (mean over 30 runs per drift type)</h3>
+  <div class="table-wrap" id="t-detection"><p class="muted">Loading…</p></div>
+  <h3>UCI Air Quality, real drift: RMSE against the reference analyzer</h3>
+  <div class="table-wrap" id="t-uci"><p class="muted">Loading…</p></div>
+  <p class="note">Honest limits: event-level precision is low (about 0.03; false alarms outnumber the injected drifts), Kalman gain tracking is more accurate on the drifting sensors themselves, and on UCI the twin is worse than one-time calibration for NOx. The full tables, statistics and ablation are in <a href="https://github.com/the-sudipta/SelfHeal-AirTwin/tree/main/results">results/</a>.</p>
+</section>
+
+<section class="reveal" id="verify">
+  <h2>Reproduce and verify</h2>
+  <div class="grid2">
+    <article class="tile">
+      <h3>One command</h3>
+      <pre><code>docker compose up
+docker compose run --rm twin reproduce</code></pre>
+      <p>The image downloads both datasets during the build, checks their SHA-256 and runs offline. <code>reproduce</code> reruns every experiment and ends with <code>PASS</code> when each table matches the committed reference within 10<sup>−6</sup>.</p>
+    </article>
+    <article class="tile">
+      <h3>Every change is visible</h3>
+      <p>Signed commits and tags, no rewritten history, actions pinned by commit, release images with build-provenance attestations and an SBOM, and SHA-256 sums for data, tables and figures. How to check each one: <a href="https://github.com/the-sudipta/SelfHeal-AirTwin/blob/main/INTEGRITY.md">INTEGRITY.md</a>.</p>
+    </article>
+  </div>
+</section>
+
+<section class="reveal" id="download">
+  <h2>Download results</h2>
+  <p>Each release attaches the tables, statistics and figures regenerated by the release workflow from the tagged code, with their checksums and the container's software bill of materials.</p>
+  <ul class="downloads">
+    <li><a href="https://github.com/the-sudipta/SelfHeal-AirTwin/releases/latest">Latest release</a><span>notes, image digest, all assets</span></li>
+    <li><a href="https://github.com/the-sudipta/SelfHeal-AirTwin/releases/latest/download/results.tar.gz">results.tar.gz</a><span>tables, statistics, figures, replay</span></li>
+    <li><a href="https://github.com/the-sudipta/SelfHeal-AirTwin/releases/latest/download/SHA256SUMS">SHA256SUMS</a><span>checksums of the datasets and every result file</span></li>
+    <li><a href="https://github.com/the-sudipta/SelfHeal-AirTwin/releases/latest/download/sbom.spdx.json">sbom.spdx.json</a><span>software bill of materials of the image</span></li>
+  </ul>
+</section>
+
+<section class="reveal" id="cite">
+  <h2>Cite and credit</h2>
+  <p>Software: Das, S. K. <em>SelfHeal-AirTwin</em>, MIT License, see <a href="https://github.com/the-sudipta/SelfHeal-AirTwin/blob/main/CITATION.cff">CITATION.cff</a>.</p>
+  <p>Data (CC BY 4.0): Chen, S. (2017). <em>Beijing Multi-Site Air Quality</em>. UCI Machine Learning Repository, <a href="https://doi.org/10.24432/C5RK5G">doi:10.24432/C5RK5G</a>. Vito, S. (2008). <em>Air Quality</em>. UCI Machine Learning Repository, <a href="https://doi.org/10.24432/C59K5F">doi:10.24432/C59K5F</a>.</p>
+</section>
+</main>
+
+<footer class="foot">SelfHeal-AirTwin · <a href="https://github.com/the-sudipta/SelfHeal-AirTwin">source</a> · every number on this site is read from the repository's result tables or the recorded run</footer>
+</body>
+</html>
