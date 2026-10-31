@@ -65,6 +65,12 @@ jobs:
       - name: Replay smoke test on the memory backend
         run: docker compose run --rm twin replay --limit 500
 
+      - name: Reproduce smoke test (seeded slice of every experiment, then verify)
+        run: |
+          # the container runs as a non-root user; let it write into the mounted results folder
+          chmod -R a+rwX results
+          docker compose run --rm twin reproduce --smoke
+
       - name: Start Kafka
         run: docker compose --profile kafka up -d --wait kafka
 
