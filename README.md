@@ -26,12 +26,12 @@ Air-quality alerts, traffic restrictions and health advice are only as good as t
 Install only [Docker](https://docs.docker.com/get-docker/). The image downloads both datasets during the build, verifies their SHA-256 checksums and then runs fully offline.
 
 ```powershell
-docker compose up                    # the twin on the in-memory stream backend
-docker compose --profile kafka up    # adds Apache Kafka (KRaft) and runs the twin on Kafka + Spark Structured Streaming
+docker compose up                    # the live twin and the web twin at http://localhost:8080
+docker compose --profile kafka up    # adds Apache Kafka (KRaft) and the same twin on Kafka + Spark at http://localhost:8081
 docker compose run --rm twin reproduce   # reruns every experiment, rewrites results/, then verifies against the reference
 ```
 
-At this milestone both services replay the Beijing dataset hour by hour through their backend and print ticks, readings and readings per second. `reproduce` takes about 40 minutes on a laptop and ends with `PASS` when every regenerated table matches the committed reference. The live web twin at `http://localhost:8080` arrives with a later milestone. Generated outputs land in `./results` on your own disk.
+Open `http://localhost:8080` once the log shows the server is up. The twin first replays the calibration year and the drift baseline at full speed (about 15 seconds), then streams one hour of Beijing data per second: an interactive 3D city with the twin's expected, raw and corrected values for the 12 PM2.5 sites, its events, the maintenance list and the what-if. Press **Inject drift** to make the selected sensor read 40 % too high and watch the twin detect it, correct it and rank it for a field visit; **Mark recalibrated** closes the loop. The API is documented at `http://localhost:8080/api/docs`. `reproduce` takes about 40 minutes on a laptop and ends with `PASS` when every regenerated table matches the committed reference. Generated outputs land in `./results` on your own disk.
 
 ## Data
 

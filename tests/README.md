@@ -5,26 +5,27 @@ The pytest suite: one test file per module that contains logic.
 | File | What it does |
 |---|---|
 | `test_package.py` | Checks that the package version is semantic and identical in `airtwin/__init__.py`, `pyproject.toml` and `CITATION.cff` |
-| `test_config.py` | Loading the real and minimal configs, path resolution, unknown datasets, stream, Kafka, twin and drift section checks, missing keys, wrong types, `AIRTWIN_CONFIG` |
+| `test_config.py` | Loading the real and minimal configs, path resolution, unknown datasets, stream, Kafka, twin, drift, experiments and API section checks, missing keys, wrong types, `AIRTWIN_CONFIG` |
 | `test_download.py` | Checksum parsing, verified download through `file://` URLs, reuse of good copies, replacement of tampered copies, refusal on mismatch |
 | `test_uci_loader.py` | Decimal commas, the `-200` tag, blank rows, hourly regularisation, duplicate timestamps, wrong layouts |
 | `test_beijing_loader.py` | Nested archive with unrelated files, `NA` handling, timestamps, sorting, duplicates, wrong layouts |
 | `test_interface.py` | Frozen readings, observed values, unique sorted sites per tick, strict time order |
 | `test_memory_stream.py` | Grouping rows into ticks, NaN kept, limit, pause, close, single-site tables, invalid input, protocol conformance |
-| `test_kafka_stream.py` | JSON encoding with NaN, tick reassembly from split and reordered batches, equality with the memory backend through a fake transport, limit, pause, close, publish failure, idle timeout, the backend factory; one real Kafka + Spark round trip that runs only when `AIRTWIN_KAFKA_TEST_BOOTSTRAP` is set (in CI, inside the image) |
+| `test_kafka_stream.py` | JSON encoding with NaN, tick reassembly from split and reordered batches, equality with the memory backend through a fake transport, limit, pause, close, publish failure, idle timeout, a slow consumer that is not mistaken for idle Kafka, the backend factory; one real Kafka + Spark round trip that runs only when `AIRTWIN_KAFKA_TEST_BOOTSTRAP` is set (in CI, inside the image) |
 | `test_state.py` | Sensor keys and their text form, corrections, residual and corrected value, frozen sorted snapshots and their queries |
 | `test_expected_model.py` | Flattening ticks, feature specs and the `use_*` switches, learning a known relationship, missing inputs, deterministic training, untrained sensors, calibration then prediction |
 | `test_drift_detector.py` | Rolling median with gaps, baseline level, robust spread and observed smoothed spreads, warm-up with too few raw or smoothed points, no alarm on stationary noise, step drift confirmed with direction for each method, slow negative drift, watch before confirmation, reset, missing hours pausing the statistics, the per-sensor bank |
 | `test_self_healer.py` | Gain and offset recovery, outliers and gaps, offset-only mode, gain bounds, too few pairs, proposals with evidence, accept and deactivate, heal, refit interval, fit windows, clear, relative effect |
 | `test_feedback.py` | Ranking by error and duration, listing threshold, confirmed drift without correction, ties, readable reasons |
-| `test_what_if.py` | Linear trend extrapolation, history window, single correction, healthy sensor |
-| `test_engine.py` | A four-site stream where one site drifts by +40 %: calibration, warm-up, detection only on the drifting site, correction near the true gain, maintenance list, what-if, mark-recalibrated; unconvincing or wrong-direction corrections dismissed; a temporary shift corrected and then retired; and the same stream without trust substitution, where healthy neighbours get blamed |
+| `test_what_if.py` | Linear trend extrapolation, history window, single correction, healthy sensor, noisy history held constant |
+| `test_engine.py` | A four-site stream where one site drifts by +40 %: calibration, warm-up, detection only on the drifting site, correction near the true gain, maintenance list, what-if (configured and custom horizons), mark-recalibrated; unconvincing or wrong-direction corrections dismissed; a temporary shift corrected and then retired; and the same stream without trust substitution, where healthy neighbours get blamed |
 | `test_drift_injection.py` | Drift shapes, factors, reproducible planning and injection that leaves other sensors untouched |
 | `test_metrics.py` | RMSE and MAE with gaps; detection scoring of delays, false alarms, precision, recall, F1 |
 | `test_stats.py` | t-based confidence intervals; Wilcoxon test, effect size direction and edge cases |
 | `test_baselines.py` | Linear fits, one-time and rolling calibration, Kalman gain tracking |
 | `test_ablation.py` | Each variant changes exactly one part; model sharing; sensitivity scaling |
 | `test_report_verify.py` | The run plan, table comparison, checksums, figures, README block and replay file |
+| `test_api.py` | The live service on a four-site city: fast-forward then pause, an injected drift detected, healed and ranked first, network error of raw and published values, numbered events, what-if, unknown sensors, a failed start, and every HTTP endpoint including the event stream and the static web twin |
 | `test_cli.py` | `airtwin download`, `prepare` and `replay`, `twin` (with and without event output) and `check` on a small generated project, the `--backend` override, failure exit codes, `--version` |
 
 ## How it connects

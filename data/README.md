@@ -33,4 +33,4 @@ Both licences require attribution. Cite the datasets and their introductory pape
 
 - `configs/default.yaml` names the URLs, archive files and this checksum file.
 - `src/airtwin/data/download.py` downloads and verifies; `uci_loader.py` and `beijing_loader.py` read the archives directly and clean them.
-- Site coordinates for the Beijing stations are added with their source when the twin first needs them.
+- The web twin places the 12 Beijing stations at approximate positions, only to draw the map (`web/js/sensors.js`); no computation uses them.
