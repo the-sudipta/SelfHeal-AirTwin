@@ -46,8 +46,13 @@ def project(
     now: datetime,
     horizons_days: Sequence[int],
     history_hours: int,
+    min_trend_r2: float = 0.0,
 ) -> WhatIfResult:
     """Project a sensor's relative error forward from its correction history.
+
+    The trend is used only when it explains at least ``min_trend_r2`` of the variation of the
+    recent corrections; otherwise successive fits are mostly noise, and extrapolating them
+    would invent growth, so the current error is held constant.
 
     Args:
         key: The sensor.
@@ -55,6 +60,7 @@ def project(
         now: The current time; horizons count from here.
         horizons_days: Days ahead to project.
         history_hours: Only fits within this many hours before ``now`` estimate the trend.
+        min_trend_r2: Minimum share of variance the linear trend must explain.
     """
     recent = []
     if history:
@@ -73,9 +79,20 @@ def project(
     days = np.array([(t - now).total_seconds() / SECONDS_PER_DAY for t, _ in recent])
     errors = np.array([e for _, e in recent])
     if len(recent) >= 2 and np.ptp(days) > 0:
-        rate = float(np.polyfit(days, errors, 1)[0])
+        slope, intercept = np.polyfit(days, errors, 1)
+        spread = float(np.sum((errors - errors.mean()) ** 2))
+        unexplained = float(np.sum((errors - (slope * days + intercept)) ** 2))
+        r2 = 1 - unexplained / spread if spread > 0 else 1.0
         span = float(np.ptp(days))
-        basis = f"linear trend of {len(recent)} corrections over {span:.1f} days"
+        if r2 >= min_trend_r2:
+            rate = float(slope)
+            basis = f"linear trend of {len(recent)} corrections over {span:.1f} days (R2 {r2:.2f})"
+        else:
+            rate = 0.0
+            basis = (
+                f"no clear trend in {len(recent)} corrections over {span:.1f} days "
+                f"(R2 {r2:.2f}): error held constant"
+            )
     else:
         rate = 0.0
         basis = "single correction: no growth rate yet, error held constant"

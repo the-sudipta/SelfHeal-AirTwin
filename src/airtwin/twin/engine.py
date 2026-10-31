@@ -66,8 +66,18 @@ class StepResult:
 class TwinEngine:
     """Runs the twin for one dataset."""
 
-    def __init__(self, twin: TwinConfig, target: TargetSpec, sites: Sequence[str]) -> None:
-        """Create untrained models, detectors and healers for every twinned sensor."""
+    def __init__(
+        self,
+        twin: TwinConfig,
+        target: TargetSpec,
+        sites: Sequence[str],
+        bank: ExpectedValueBank | None = None,
+    ) -> None:
+        """Create models, detectors and healers for every twinned sensor.
+
+        A calibrated ``bank`` (e.g. shared by many experiment runs on the same calibration
+        data) skips the calibration window: the stream should then start after it.
+        """
         self._cfg = twin
         specs = build_specs(sites, target)
         self.keys = [s.target for s in specs]
@@ -77,7 +87,7 @@ class TwinEngine:
             for feature in spec.features:
                 if feature in {str(k) for k in self.keys}:
                     self._dependents[SensorKey.parse(feature)].append(spec.target)
-        self._bank = ExpectedValueBank(
+        self._bank = bank or ExpectedValueBank(
             specs, twin.model, target.calibration_hours, twin.min_training_rows
         )
         self._detectors = DriftDetectorBank(self.keys, twin.drift)
@@ -86,6 +96,11 @@ class TwinEngine:
         self._history: dict[SensorKey, list[tuple[datetime, float]]] = {k: [] for k in self.keys}
         self._statuses = {k: SensorStatus.WARMUP for k in self.keys}
         self.snapshot: TwinSnapshot | None = None
+
+    @property
+    def bank(self) -> ExpectedValueBank:
+        """The expected-value models (read-only use, e.g. for baselines)."""
+        return self._bank
 
     @classmethod
     def for_dataset(cls, cfg: Config, dataset: str, sites: Iterable[str]) -> TwinEngine:
@@ -208,8 +223,12 @@ class TwinEngine:
             self._onsets.setdefault(key, now)
             way = "high" if reading.direction > 0 else "low"
             events.append(TwinEvent(now, EventKind.DETECT, key, f"drift confirmed, reads {way}"))
-        if detector.confirmed:
+        if detector.confirmed and self._cfg.heal.enabled:
             events.extend(self._heal(key, now, reading.direction))
+        elif reading.confirmed_now:
+            # detect-only mode: the alarm goes to the operator and monitoring restarts, so a
+            # lasting drift keeps raising alarms instead of one alarm forever
+            detector.reset(forget_window=True)
         status = self._status(reading, healer.active, detector.confirmed or reading.confirmed_now)
         if status is SensorStatus.WATCH and self._statuses[key] is not SensorStatus.WATCH:
             events.append(TwinEvent(now, EventKind.WATCH, key, f"drift score {reading.score:.2f}"))
@@ -292,7 +311,14 @@ class TwinEngine:
         """Project a sensor's error if it is not recalibrated."""
         now = self.snapshot.timestamp if self.snapshot else datetime.min
         settings = self._cfg.what_if
-        return project(key, self._history[key], now, settings.horizons_days, settings.history_hours)
+        return project(
+            key,
+            self._history[key],
+            now,
+            settings.horizons_days,
+            settings.history_hours,
+            settings.min_trend_r2,
+        )
 
     def mark_recalibrated(self, key: SensorKey) -> TwinEvent:
         """The physical sensor was serviced: clear its correction, detector and history."""

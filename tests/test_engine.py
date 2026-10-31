@@ -224,3 +224,35 @@ def test_temporary_shift_is_corrected_then_retired() -> None:
     assert EventKind.RECOVERED in kinds
     assert engine.snapshot is not None
     assert engine.snapshot.sensors[SensorKey(DRIFT_SITE, "pm25")].correction.is_identity
+
+
+def test_detect_only_mode_publishes_raw_values() -> None:
+    from dataclasses import replace
+
+    twin = replace(TWIN, heal=replace(TWIN.heal, enabled=False))
+    engine = TwinEngine(twin, TARGET, SITES)
+    results = list(engine.run(ticks(DRIFT_START + 200)))
+    kinds = {e.kind for r in results for e in r.events}
+    assert EventKind.DETECT in kinds
+    assert EventKind.HEAL not in kinds
+    final = results[-1].snapshot.sensors[SensorKey(DRIFT_SITE, "pm25")]
+    assert final.correction.is_identity
+    alarms = [
+        e
+        for r in results
+        for e in r.events
+        if e.kind is EventKind.DETECT and e.key == SensorKey(DRIFT_SITE, "pm25")
+    ]
+    assert len(alarms) >= 2  # a lasting drift keeps raising alarms
+
+
+def test_shared_calibrated_bank_skips_calibration() -> None:
+    first = TwinEngine(TWIN, TARGET, SITES)
+    data = ticks(DRIFT_START + 200)
+    list(first.run(data[: CAL + 1]))
+    assert first.bank.calibrated
+    second = TwinEngine(TWIN, TARGET, SITES, bank=first.bank)
+    results = list(second.run(data[CAL + 1 :]))
+    assert not any(e.kind is EventKind.CALIBRATED for r in results for e in r.events)
+    assert math.isfinite(results[0].snapshot.sensors[SensorKey("A", "pm25")].expected)
+    assert any(e.kind is EventKind.HEAL for r in results for e in r.events)

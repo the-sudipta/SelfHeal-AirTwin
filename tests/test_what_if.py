@@ -40,3 +40,18 @@ def test_no_history_means_healthy() -> None:
     assert result.points_used == 0
     assert result.projections[0].relative_error == 0.0
     assert "healthy" in result.basis
+
+
+def test_noisy_history_holds_the_error_constant() -> None:
+    noisy = [
+        (NOW - timedelta(days=d), e)
+        for d, e in ((10, 0.3), (7, 0.1), (4, 0.35), (1, 0.12), (0, 0.2))
+    ]
+    held = project(KEY, noisy, NOW, [7, 30], history_hours=336, min_trend_r2=0.5)
+    assert held.rate_per_day == 0.0
+    assert [p.relative_error for p in held.projections] == [0.2, 0.2]
+    assert "no clear trend" in held.basis
+    clean = [(NOW - timedelta(days=d), 0.2 - 0.01 * d) for d in (10, 7, 4, 1, 0)]
+    trend = project(KEY, clean, NOW, [7], history_hours=336, min_trend_r2=0.5)
+    assert trend.rate_per_day == pytest.approx(0.01)
+    assert "R2 1.00" in trend.basis
