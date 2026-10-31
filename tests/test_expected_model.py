@@ -127,3 +127,33 @@ def test_bank_calibrates_then_predicts() -> None:
     last = outputs[300]
     assert math.isfinite(last[SensorKey("C", "pm25")])
     assert math.isnan(last[SensorKey("Z", "pm25")])
+
+
+def test_column_table_and_predict_table_match_row_predictions() -> None:
+    import pandas as pd
+
+    from airtwin.twin.expected_model import column_table
+
+    rows = synthetic_rows(300)
+    spec = FeatureSpec(SensorKey("C", "pm25"), ("A:pm25", "B:pm25", "C:temperature"))
+    model = ExpectedModel(spec, PARAMS)
+    model.fit(rows, 50)
+    times = pd.date_range("2014-01-01", periods=5, freq="h")
+    frame = pd.DataFrame(
+        {
+            "timestamp": list(times) * 3,
+            "site": ["A"] * 5 + ["B"] * 5 + ["C"] * 5,
+            "pm25": [10.0, 20, 30, 40, 50] * 2 + [0.0] * 5,
+            "temperature": [5.0] * 15,
+        }
+    )
+    table, length = column_table(frame, ["pm25", "temperature"])
+    assert length == 5 and table["B:pm25"].tolist() == [10, 20, 30, 40, 50]
+    assert table[HOUR_SIN][0] == 0.0
+    by_row = [
+        model.predict({"A:pm25": v, "B:pm25": v, "C:temperature": 5.0})
+        for v in [10.0, 20, 30, 40, 50]
+    ]
+    assert model.predict_table(table, length) == pytest.approx(by_row)
+    untrained = ExpectedModel(spec, PARAMS)
+    assert np.isnan(untrained.predict_table(table, length)).all()

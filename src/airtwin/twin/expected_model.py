@@ -16,6 +16,7 @@ from typing import Any
 
 import lightgbm as lgb
 import numpy as np
+import pandas as pd
 
 from airtwin.config import ModelParams, TargetSpec
 from airtwin.stream.interface import Tick
@@ -138,6 +139,33 @@ class ExpectedModel:
     def predict(self, row: Row) -> float:
         """Expected value for one row."""
         return float(self.predict_many([row])[0])
+
+    def predict_table(self, table: Mapping[str, np.ndarray], length: int) -> np.ndarray:
+        """Expected values for a whole column table (feature name -> values); missing -> NaN."""
+        if self._booster is None:
+            return np.full(length, math.nan)
+        columns = [table.get(f, np.full(length, math.nan)) for f in self.spec.features]
+        matrix = np.column_stack(columns).astype("float64") if columns else np.empty((length, 0))
+        return np.asarray(self._booster.predict(matrix), dtype="float64")
+
+
+def column_table(frame: pd.DataFrame, values: Sequence[str]) -> tuple[dict[str, np.ndarray], int]:
+    """Turn a long table (timestamp, site, values) into ``site:variable`` columns.
+
+    Rows are the sorted distinct timestamps; hour-of-day features are added, and the result
+    can be passed to :meth:`ExpectedModel.predict_table`.
+    """
+    wide = frame.pivot_table(index="timestamp", columns="site", values=list(values), dropna=False)
+    wide = wide.sort_index()
+    table: dict[str, np.ndarray] = {}
+    for column in wide.columns:
+        variable, site = (str(part) for part in column)
+        table[str(SensorKey(site, variable))] = wide[column].to_numpy(dtype="float64")
+    hours = pd.DatetimeIndex(wide.index).hour.to_numpy()
+    angle = 2 * math.pi * hours / HOURS_PER_DAY
+    table[HOUR_SIN] = np.sin(angle)
+    table[HOUR_COS] = np.cos(angle)
+    return table, len(wide)
 
 
 class ExpectedValueBank:
