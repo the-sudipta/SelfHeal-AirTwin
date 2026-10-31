@@ -49,7 +49,8 @@ twin:
     confirm_hours: 24           # consecutive alarm hours before drift is confirmed
     # Defaults chosen on years 1-2 of Beijing (Supplementary S4); years 3-4 are left for evaluation.
   heal:
-    fit_hours: 168              # the correction is fitted on the last 7 days of (expected, raw) pairs
+    enabled: true               # false: detect only, publish raw values (ablation)
+    fit_hours: 168             # the correction is fitted on the last 7 days of (expected, raw) pairs
     min_pairs: 48               # fewer usable pairs: no correction yet
     gain_min_pairs: 72          # a gain needs ~3 days of varying concentrations; before that, offset only
     refit_hours: 24             # refit while a correction is active, so a growing drift stays corrected
@@ -66,6 +67,7 @@ twin:
   what_if:
     horizons_days: [7, 14, 30]
     history_hours: 336          # corrections of the last 14 days estimate how fast the error grows
+    min_trend_r2: 0.5           # use the trend only if it explains half the variation; else hold the error
   model:                        # LightGBM regressor per sensor, deterministic single-thread training
     n_estimators: 200
     learning_rate: 0.05
@@ -91,3 +93,46 @@ twin:
       use_weather: true
       use_reference: true
       use_time: true
+
+experiments:
+  seeds: 30                       # repetitions per setting of the Beijing drift experiments
+  sensitivity_seeds: 10           # repetitions per value of the sensitivity sweeps
+  workers: 6                      # parallel processes (each single-threaded); 0 = one per CPU
+  results_dir: results
+  reference_dir: results/reference
+  tolerance: 1.0e-6               # absolute tolerance of airtwin verify
+  beijing:
+    variables: [pm25]             # twinned variable of the drift experiments (12 sensors)
+    evaluation_start: "2015-03-01 00:00"   # years 3-4; years 1-2 were used to design the detector
+    min_hours_after_onset: 4320   # every drift has at least 180 days of evaluation after onset
+    drifted_sensors: 3            # sensors drifting per run, chosen at random
+    magnitude: [0.20, 0.50]       # relative size of the drift (sign chosen at random)
+    ramp_hours: 1440              # linear and exponential drifts reach full size after 60 days
+    exp_rate: 4.0                 # curvature of the exponential drift
+    drift_types: [step, linear, exponential]
+    replay_days: 30               # length of the replay exported for the web twin
+  uci:
+    pairs:                        # low-cost sensor -> co-located reference analyzer
+      s1_co: co_ref
+      s2_nmhc: c6h6_ref
+      s3_nox: nox_ref
+      s4_no2: no2_ref
+    covariates: [temperature, relative_humidity]
+  baselines:
+    rolling_window_hours: 168     # rolling recalibration: refit on the last 7 days ...
+    rolling_every_hours: 168      # ... every 7 days
+    kalman_q: 1.0e-5              # process noise of the Kalman gain tracker (per hour)
+    kalman_r_scale: 1.0           # measurement noise = scale x baseline residual variance
+  sensitivity:
+    threshold_scales: [0.5, 0.75, 1.0, 1.5, 2.0]   # multiplies ewma_limit and cusum_h
+    ewma_lambdas: [0.02, 0.05, 0.1, 0.2]
+  what_if:
+    check_after_days: 7           # projection made 7 days after the first correction
+  throughput:
+    hours: 2000                   # Beijing hours timed per backend
+  smoke:                          # tiny seeded slice for CI: same code path, minutes not hours
+    seeds: 1
+    sensitivity_seeds: 1
+    threshold_scales: [1.0, 2.0]
+    ewma_lambdas: [0.05]
+    ablation: [full, no_trust_substitution]

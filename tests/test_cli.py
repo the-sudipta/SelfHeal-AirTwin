@@ -70,6 +70,7 @@ twin:
     watch_level: 0.5
     confirm_hours: 2
   heal:
+    enabled: true
     fit_hours: 10
     min_pairs: 5
     gain_min_pairs: 8
@@ -86,6 +87,7 @@ twin:
   what_if:
     horizons_days: [7, 30]
     history_hours: 48
+    min_trend_r2: 0.5
   model:
     n_estimators: 5
     learning_rate: 0.1
@@ -102,6 +104,45 @@ twin:
       use_weather: true
       use_reference: false
       use_time: true
+experiments:
+  seeds: 2
+  sensitivity_seeds: 1
+  workers: 1
+  results_dir: results
+  reference_dir: results/reference
+  tolerance: 0.000001
+  beijing:
+    variables: [pm25]
+    evaluation_start: "2013-03-01 02:00"
+    min_hours_after_onset: 1
+    drifted_sensors: 1
+    magnitude: [0.2, 0.5]
+    ramp_hours: 2
+    exp_rate: 4
+    drift_types: [step, linear]
+    replay_days: 1
+  uci:
+    pairs:
+      s1_co: co_ref
+    covariates: [temperature]
+  baselines:
+    rolling_window_hours: 2
+    rolling_every_hours: 2
+    kalman_q: 0.00001
+    kalman_r_scale: 1
+  sensitivity:
+    threshold_scales: [1.0]
+    ewma_lambdas: [0.05]
+  what_if:
+    check_after_days: 1
+  throughput:
+    hours: 2
+  smoke:
+    seeds: 1
+    sensitivity_seeds: 1
+    threshold_scales: [1.0]
+    ewma_lambdas: [0.05]
+    ablation: [full]
 """,
         encoding="utf-8",
     )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -131,6 +132,7 @@ class HealSettings:
     trim_mad: float
     min_effect: float
     min_improvement: float
+    enabled: bool = True  # False: detect only, publish raw values (ablation)
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,7 @@ class WhatIfSettings:
 
     horizons_days: tuple[int, ...]
     history_hours: int
+    min_trend_r2: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -170,6 +173,73 @@ class TwinConfig:
             raise ConfigError(f"no twin targets for dataset {dataset!r}") from exc
 
 
+DRIFT_TYPES = ("step", "linear", "exponential")
+
+
+@dataclass(frozen=True)
+class BeijingExperiment:
+    """How drift is injected into the Beijing data and which period is evaluated."""
+
+    variables: tuple[str, ...]
+    evaluation_start: datetime
+    min_hours_after_onset: int
+    drifted_sensors: int
+    magnitude: tuple[float, float]
+    ramp_hours: int
+    exp_rate: float
+    drift_types: tuple[str, ...]
+    replay_days: int
+
+
+@dataclass(frozen=True)
+class UciExperiment:
+    """Low-cost sensor to reference analyzer pairs and calibration covariates."""
+
+    pairs: Mapping[str, str]
+    covariates: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BaselineSettings:
+    """Parameters of the comparison methods."""
+
+    rolling_window_hours: int
+    rolling_every_hours: int
+    kalman_q: float
+    kalman_r_scale: float
+
+
+@dataclass(frozen=True)
+class SmokeSettings:
+    """The reduced experiment set used in CI."""
+
+    seeds: int
+    sensitivity_seeds: int
+    threshold_scales: tuple[float, ...]
+    ewma_lambdas: tuple[float, ...]
+    ablation: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    """Everything the reproducible experiments need."""
+
+    seeds: int
+    sensitivity_seeds: int
+    workers: int
+    results_dir: Path
+    reference_dir: Path
+    tolerance: float
+    beijing: BeijingExperiment
+    uci: UciExperiment
+    baselines: BaselineSettings
+    threshold_scales: tuple[float, ...]
+    ewma_lambdas: tuple[float, ...]
+    what_if_check_days: int
+    throughput_hours: int
+    smoke: SmokeSettings
+
+
 @dataclass(frozen=True)
 class Config:
     """The complete project configuration."""
@@ -178,6 +248,7 @@ class Config:
     data: DataConfig
     stream: StreamConfig
     twin: TwinConfig
+    experiments: ExperimentConfig
 
 
 def _require(section: Mapping[str, Any], key: str, kind: type, where: str) -> Any:
@@ -339,6 +410,7 @@ def _parse_heal(raw: Mapping[str, Any]) -> HealSettings:
         trim_mad=_positive_float(raw, "trim_mad", where),
         min_effect=_fraction(raw, "min_effect", where),
         min_improvement=_fraction(raw, "min_improvement", where),
+        enabled=_require(raw, "enabled", bool, where),
     )
 
 
@@ -365,6 +437,7 @@ def _parse_what_if(raw: Mapping[str, Any]) -> WhatIfSettings:
     return WhatIfSettings(
         horizons_days=tuple(sorted(horizons)),
         history_hours=_positive_int(raw, "history_hours", where),
+        min_trend_r2=_fraction(raw, "min_trend_r2", where),
     )
 
 
@@ -409,6 +482,88 @@ def _parse_twin(raw: Mapping[str, Any]) -> TwinConfig:
     )
 
 
+def _floats(raw: Mapping[str, Any], key: str, where: str) -> tuple[float, ...]:
+    """Read a non-empty list of positive numbers."""
+    values = _require(raw, key, list, where)
+    if not values or not all(
+        isinstance(v, int | float) and not isinstance(v, bool) and v > 0 for v in values
+    ):
+        raise ConfigError(f"{where}.{key} must be a non-empty list of positive numbers")
+    return tuple(float(v) for v in values)
+
+
+def _parse_experiments(raw: Mapping[str, Any], root: Path) -> ExperimentConfig:
+    """Build the experiments section and check its ranges."""
+    where = "experiments"
+    bj = _require(raw, "beijing", dict, where)
+    bw = f"{where}.beijing"
+    magnitude = _floats(bj, "magnitude", bw)
+    if len(magnitude) != 2 or magnitude[0] > magnitude[1]:
+        raise ConfigError(f"{bw}.magnitude must be [low, high] with low <= high")
+    types = _names(bj, "drift_types", bw)
+    if not types or not set(types) <= set(DRIFT_TYPES):
+        raise ConfigError(f"{bw}.drift_types must be a non-empty subset of {DRIFT_TYPES}")
+    try:
+        start = datetime.fromisoformat(_require(bj, "evaluation_start", str, bw))
+    except ValueError as exc:
+        raise ConfigError(f"{bw}.evaluation_start is not a date and time") from exc
+    beijing = BeijingExperiment(
+        variables=_names(bj, "variables", bw),
+        evaluation_start=start,
+        min_hours_after_onset=_positive_int(bj, "min_hours_after_onset", bw),
+        drifted_sensors=_positive_int(bj, "drifted_sensors", bw),
+        magnitude=(magnitude[0], magnitude[1]),
+        ramp_hours=_positive_int(bj, "ramp_hours", bw),
+        exp_rate=_positive_float(bj, "exp_rate", bw),
+        drift_types=types,
+        replay_days=_positive_int(bj, "replay_days", bw),
+    )
+    uci_raw = _require(raw, "uci", dict, where)
+    pairs = _require(uci_raw, "pairs", dict, f"{where}.uci")
+    if not pairs or not all(isinstance(k, str) and isinstance(v, str) for k, v in pairs.items()):
+        raise ConfigError(f"{where}.uci.pairs must map sensor names to reference names")
+    uci = UciExperiment(pairs=dict(pairs), covariates=_names(uci_raw, "covariates", f"{where}.uci"))
+    bl = _require(raw, "baselines", dict, where)
+    baselines = BaselineSettings(
+        rolling_window_hours=_positive_int(bl, "rolling_window_hours", f"{where}.baselines"),
+        rolling_every_hours=_positive_int(bl, "rolling_every_hours", f"{where}.baselines"),
+        kalman_q=_positive_float(bl, "kalman_q", f"{where}.baselines"),
+        kalman_r_scale=_positive_float(bl, "kalman_r_scale", f"{where}.baselines"),
+    )
+    sens = _require(raw, "sensitivity", dict, where)
+    smoke_raw = _require(raw, "smoke", dict, where)
+    smoke = SmokeSettings(
+        seeds=_positive_int(smoke_raw, "seeds", f"{where}.smoke"),
+        sensitivity_seeds=_positive_int(smoke_raw, "sensitivity_seeds", f"{where}.smoke"),
+        threshold_scales=_floats(smoke_raw, "threshold_scales", f"{where}.smoke"),
+        ewma_lambdas=_floats(smoke_raw, "ewma_lambdas", f"{where}.smoke"),
+        ablation=_names(smoke_raw, "ablation", f"{where}.smoke"),
+    )
+    workers = int(_require(raw, "workers", int, where))
+    if workers < 0:
+        raise ConfigError(f"{where}.workers must not be negative")
+    return ExperimentConfig(
+        seeds=_positive_int(raw, "seeds", where),
+        sensitivity_seeds=_positive_int(raw, "sensitivity_seeds", where),
+        workers=workers,
+        results_dir=root / _require(raw, "results_dir", str, where),
+        reference_dir=root / _require(raw, "reference_dir", str, where),
+        tolerance=_positive_float(raw, "tolerance", where),
+        beijing=beijing,
+        uci=uci,
+        baselines=baselines,
+        threshold_scales=_floats(sens, "threshold_scales", f"{where}.sensitivity"),
+        ewma_lambdas=_floats(sens, "ewma_lambdas", f"{where}.sensitivity"),
+        what_if_check_days=_positive_int(
+            _require(raw, "what_if", dict, where), "check_after_days", f"{where}.what_if"
+        ),
+        throughput_hours=_positive_int(
+            _require(raw, "throughput", dict, where), "hours", f"{where}.throughput"
+        ),
+        smoke=smoke,
+    )
+
+
 def default_config_path() -> Path:
     """Return the config path from ``AIRTWIN_CONFIG`` or ``configs/default.yaml`` in the cwd."""
     return Path(os.environ.get(CONFIG_ENV_VAR, DEFAULT_CONFIG)).resolve()
@@ -438,4 +593,5 @@ def load_config(path: Path | None = None) -> Config:
         data=_parse_data(_require(raw, "data", dict, "config"), root),
         stream=_parse_stream(_require(raw, "stream", dict, "config"), root),
         twin=_parse_twin(_require(raw, "twin", dict, "config")),
+        experiments=_parse_experiments(_require(raw, "experiments", dict, "config"), root),
     )

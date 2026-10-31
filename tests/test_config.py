@@ -55,6 +55,7 @@ twin:
     watch_level: 0.5
     confirm_hours: 2
   heal:
+    enabled: true
     fit_hours: 10
     min_pairs: 5
     gain_min_pairs: 8
@@ -71,6 +72,7 @@ twin:
   what_if:
     horizons_days: [7, 30]
     history_hours: 48
+    min_trend_r2: 0.5
   model: {n_estimators: 5, learning_rate: 0.1, num_leaves: 4, min_data_in_leaf: 1, seed: 1}
   targets:
     demo:
@@ -82,6 +84,44 @@ twin:
       use_weather: true
       use_reference: false
       use_time: true
+experiments:
+  seeds: 2
+  sensitivity_seeds: 1
+  workers: 1
+  results_dir: results
+  reference_dir: results/reference
+  tolerance: 0.000001
+  beijing:
+    variables: [pm25]
+    evaluation_start: "2013-03-01 02:00"
+    min_hours_after_onset: 1
+    drifted_sensors: 1
+    magnitude: [0.2, 0.5]
+    ramp_hours: 2
+    exp_rate: 4
+    drift_types: [step, linear]
+    replay_days: 1
+  uci:
+    pairs: {s1_co: co_ref}
+    covariates: [temperature]
+  baselines:
+    rolling_window_hours: 2
+    rolling_every_hours: 2
+    kalman_q: 0.00001
+    kalman_r_scale: 1
+  sensitivity:
+    threshold_scales: [1.0]
+    ewma_lambdas: [0.05]
+  what_if:
+    check_after_days: 1
+  throughput:
+    hours: 2
+  smoke:
+    seeds: 1
+    sensitivity_seeds: 1
+    threshold_scales: [1.0]
+    ewma_lambdas: [0.05]
+    ablation: [full]
 """
 
 
@@ -194,6 +234,33 @@ def test_heal_feedback_and_what_if_sections_are_validated(tmp_path: Path) -> Non
     ]
     for i, (old, bad, message) in enumerate(cases):
         folder = tmp_path / f"heal{i}"
+        folder.mkdir()
+        with pytest.raises(ConfigError, match=message):
+            load_config(write_config(folder, MINIMAL.replace(old, bad)))
+
+
+def test_experiments_section_is_parsed_and_validated(tmp_path: Path) -> None:
+    exp = load_config(write_config(tmp_path, MINIMAL)).experiments
+    assert exp.seeds == 2
+    assert exp.beijing.magnitude == (0.2, 0.5)
+    assert exp.beijing.drift_types == ("step", "linear")
+    assert exp.uci.pairs == {"s1_co": "co_ref"}
+    assert exp.results_dir == tmp_path.resolve() / "results"
+    assert exp.smoke.ablation == ("full",)
+    cases = [
+        ("magnitude: [0.2, 0.5]", "magnitude: [0.5, 0.2]", "low <= high"),
+        ("drift_types: [step, linear]", "drift_types: [wave]", "subset of"),
+        ('evaluation_start: "2013-03-01 02:00"', 'evaluation_start: "soon"', "not a date"),
+        ("pairs: {s1_co: co_ref}", "pairs: {}", "must map sensor names"),
+        ("workers: 1", "workers: -1", "must not be negative"),
+        (
+            "threshold_scales: [1.0]\n    ewma_lambdas: [0.05]\n  what_if",
+            "threshold_scales: []\n    ewma_lambdas: [0.05]\n  what_if",
+            "positive numbers",
+        ),
+    ]
+    for i, (old, bad, message) in enumerate(cases):
+        folder = tmp_path / f"exp{i}"
         folder.mkdir()
         with pytest.raises(ConfigError, match=message):
             load_config(write_config(folder, MINIMAL.replace(old, bad)))
