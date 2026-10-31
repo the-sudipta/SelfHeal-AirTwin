@@ -8,6 +8,8 @@ pyyaml
 confluent-kafka
 pyspark
 lightgbm
+scipy
+matplotlib
 
 # Quality tooling
 pytest
