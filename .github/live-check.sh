@@ -7,7 +7,7 @@ port="$1"
 base="http://localhost:${port}"
 phase=""
 for _ in $(seq 1 120); do
-  phase=$(curl -fsS "${base}/api/health" | python3 -c "import json, sys; print(json.load(sys.stdin)['phase'])" || true)
+  phase=$(curl -fsS "${base}/api/health" 2>/dev/null | python3 -c "import json, sys; print(json.load(sys.stdin)['phase'])" 2>/dev/null || true)
   if [ "${phase}" = "running" ] || [ "${phase}" = "failed" ]; then
     break
   fi
@@ -24,8 +24,13 @@ assert len(sensors) == 12, len(sensors)
 assert all(s['expected'] is not None for s in sensors if s['raw'] is not None)
 print('hour', state['status']['hour'], 'time', state['status']['time'])
 "
-curl -fsS "${base}/" | grep -q "SelfHeal-Air"
+# capture each response before searching it: grep -q stops reading at the first match, and
+# with pipefail the interrupted curl would fail the check
+page=$(curl -fsS "${base}/")
+grep -q "SelfHeal-Air" <<< "${page}"
 curl -fsS "${base}/js/main.js" > /dev/null
-curl -fsS -X POST "${base}/api/sensors/Dongsi:pm25/inject" | grep -q '"kind":"inject"'
-curl -fsS "${base}/api/state" | grep -q '"injections":\[{"sensor":"Dongsi:pm25"'
+event=$(curl -fsS -X POST "${base}/api/sensors/Dongsi:pm25/inject")
+grep -q '"kind":"inject"' <<< "${event}"
+state=$(curl -fsS "${base}/api/state")
+grep -q '"injections":\[{"sensor":"Dongsi:pm25"' <<< "${state}"
 echo "live twin OK on port ${port}"
