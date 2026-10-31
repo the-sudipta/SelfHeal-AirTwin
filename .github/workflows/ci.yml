@@ -45,3 +45,40 @@ jobs:
 
       - name: Pytest
         run: pytest -q --cov --cov-report=term
+
+  image:
+    name: Container image and Kafka + Spark backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build image (downloads and verifies the datasets)
+        run: docker compose build --build-arg VERSION=ci --build-arg REVISION=${{ github.sha }}
+
+      - name: Health check command
+        run: docker compose run --rm twin check
+
+      - name: Replay smoke test on the memory backend
+        run: docker compose run --rm twin replay --limit 500
+
+      - name: Start Kafka
+        run: docker compose --profile kafka up -d --wait kafka
+
+      - name: Kafka + Spark integration test
+        run: >
+          docker compose --profile kafka run --rm
+          -e AIRTWIN_KAFKA_TEST_BOOTSTRAP=kafka:9092
+          -v "$PWD/tests:/app/tests:ro"
+          --entrypoint python twin-kafka
+          -m pytest -q -p no:cacheprovider tests/test_kafka_stream.py
+
+      - name: Replay smoke test on the Kafka + Spark backend
+        run: docker compose --profile kafka run --rm twin-kafka --backend kafka replay --limit 200
+
+      - name: Stop services
+        if: always()
+        run: docker compose --profile kafka down --volumes
