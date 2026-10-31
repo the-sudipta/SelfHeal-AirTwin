@@ -2,6 +2,37 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-10-31
+
+The experiments: every result in the paper from one command.
+
+### Added
+
+- `airtwin.experiments.drift_injection`: step, linear and exponential multiplicative drifts with signed sizes, injected into chosen sensors from a seeded plan.
+- `airtwin.experiments.metrics`: RMSE, MAE and detection scoring (delay, precision, recall, F1, false alarms per 1,000 sensor-hours).
+- `airtwin.experiments.stats`: mean with t-based 95 % confidence interval; paired Wilcoxon signed-rank test with rank-biserial effect size.
+- `airtwin.experiments.baselines`: one-time calibration, rolling linear recalibration and Kalman-filter gain tracking.
+- `airtwin.experiments.ablation`: seven variants (full, no neighbours, no weather, EWMA only, CUSUM only, no self-healing, no trust substitution) and the threshold and EWMA sensitivity settings.
+- `airtwin.experiments.runner`, `report` and `verify`: UCI and Beijing runs on parallel worker processes, tables, figures (PNG and SVG), the README results block, the web-twin replay file and value-by-value verification.
+- `airtwin reproduce` (`--smoke`, `--kafka`, `--update-reference`), `airtwin verify` and `airtwin report`.
+- Reference tables in `results/reference/full` and `results/reference/smoke`, `results/SHA256SUMS`, and `site/data/replay.json`.
+- CI runs `reproduce --smoke` in the Docker image on every push.
+- `experiments` configuration section; `twin.heal.enabled`; `twin.what_if.min_trend_r2`.
+
+### Changed
+
+- The engine accepts a shared, already calibrated model bank; with healing disabled the detector restarts after each alarm.
+- What-if uses the trend of recent corrections only when it explains at least half of their variation (R² ≥ 0.5); otherwise it holds the current error.
+- SciPy and Matplotlib added to the locked dependencies.
+
+### Results (full run, 370 runs)
+
+- Beijing PM2.5, 30 seeds per drift type: all 270 injected drifts detected; median delay 150 h (step), 742 h (linear), 1,268 h (exponential); 0.49–0.56 false alarms per 1,000 sensor-hours. RMSE over all sensors is the lowest of all methods for every drift type (5.9–6.9 µg/m³ against 7.2–17.4).
+- UCI Air Quality (real drift): better than one-time calibration for CO and NO₂, equal for benzene, worse for NOx.
+- Throughput: about 11,000 readings per second on the memory backend (machine-dependent).
+
+[0.8.0]: https://github.com/the-sudipta/SelfHeal-AirTwin/releases/tag/v0.8.0
+
 ## [0.7.0] - 2026-10-31
 
 The closed loop: self-healing, maintenance feedback, what-if and the twin engine.
